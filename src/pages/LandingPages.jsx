@@ -7,7 +7,6 @@ import {
 } from "framer-motion";
 import {
   ArrowRight,
-  Award,
   Building2,
   ShieldCheck,
   TrendingUp,
@@ -19,46 +18,46 @@ import InvestmentCorridorsSection from "../components/InvestmentCorridor";
 
 const statsSlides = [
   [
-    { value: "4,800+", label: "Trusted Global Investors" },
+    { value: "4,800+", label: "Trusted Investors" },
     { value: "18.5%", label: "Avg. Annualized Returns" },
-    { value: "$24M+", label: "International Capital Invested" },
-    { value: "45+", label: "Projects Completed Worldwide" },
+    { value: "$24M+", label: "Invested in Real Estate" },
+    { value: "45+", label: "Projects Completed" },
   ],
   [
-    { value: "120+", label: "Active Global Property Deals" },
+    { value: "120+", label: "Active Property Deals" },
     { value: "99.4%", label: "Investor Satisfaction" },
     { value: "$50M+", label: "Total Asset Value" },
-    { value: "15+", label: "Prime International Markets" },
+    { value: "15+", label: "Prime Urban Locations" },
   ],
 ];
 
 const strategies = [
   {
     icon: Building2,
-    title: "International Residential",
+    title: "Residential Development",
     description:
-      "Invest in prime residential property acquisition and development opportunities across high-demand global locations.",
+      "Invest in residential property acquisition and development opportunities in carefully selected locations.",
     label: "Residential",
   },
   {
     icon: TrendingUp,
-    title: "Global Commercial Hubs",
+    title: "Commercial Development",
     description:
-      "Explore commercial real estate projects designed around local demand, strategic positioning, and long-term asset value.",
+      "Explore commercial real estate projects designed around local demand, location and long-term asset value.",
     label: "Commercial",
   },
   {
     icon: Wallet,
-    title: "Yield-Generating Assets",
+    title: "Income-Generating Property",
     description:
-      "Participate in eligible international property investments structured to generate consistent cash flow and rental income.",
+      "Participate in eligible property investments that may generate rental income, subject to project performance.",
     label: "Income potential",
   },
   {
     icon: ShieldCheck,
-    title: "Strategic Value-Add",
+    title: "Property Value Development",
     description:
-      "Support property improvement and development projects intended to enhance value and utility across international real assets.",
+      "Support property improvement and development projects intended to enhance the value and usefulness of real assets.",
     label: "Development",
   },
 ];
@@ -66,27 +65,27 @@ const strategies = [
 const reasons = [
   {
     num: "01",
-    title: "Global Asset Focus",
+    title: "Real-Asset Focus",
     description:
-      "Explore high-yield investment opportunities connected to rigorously vetted international real estate assets.",
+      "Explore investment opportunities connected to identified real estate assets and development projects.",
   },
   {
     num: "02",
-    title: "Transparent Terms",
+    title: "Clear Investment Terms",
     description:
-      "Review the project structure, international holding entities, investment duration, and distribution terms upfront.",
+      "Review the project structure, investment duration, fees, risks and distribution terms before making an investment decision.",
   },
   {
     num: "03",
-    title: "Cross-Border Visibility",
+    title: "Project Visibility",
     description:
-      "Follow milestone project updates, development progress, and asset valuation reports directly through your portal.",
+      "Follow project updates and access relevant information about acquisition, development and management progress.",
   },
   {
     num: "04",
-    title: "Institutional Reporting",
+    title: "Investor Reporting",
     description:
-      "Access unified financial records, audit logs, and distribution statements across all your global holdings.",
+      "Access investment records, project reports and distribution statements through your investor account.",
   },
 ];
 
@@ -217,10 +216,10 @@ export default function LandingPage() {
               variants={sectionAnimation}
               className="text-4xl font-bold leading-[1.08] tracking-tight text-[#0B1F4B] dark:text-white sm:text-6xl lg:text-7xl"
             >
-              Tangible Global Investments.
+              Tangible Investments.
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D9A52E] to-[#F2D58A]">
-                Borderles Opportunities.
+                Real Opportunities.
               </span>
             </motion.h1>
 
@@ -228,7 +227,9 @@ export default function LandingPage() {
               variants={sectionAnimation}
               className="max-w-2xl text-base font-normal leading-8 text-slate-600 dark:text-slate-300 sm:text-lg"
             >
-              Access premium international real estate assets and high-growth development opportunities with structured yields, multi-currency stability, and institutional transparency.
+              Discover real estate development and property investment
+              opportunities with clear project information, defined investment
+              terms and transparent investor reporting.
             </motion.p>
 
             <motion.div
@@ -247,7 +248,7 @@ export default function LandingPage() {
                 to="/properties"
                 className="inline-flex items-center justify-center gap-3 rounded-xl border border-slate-300 dark:border-white/30 bg-white dark:bg-white/5 px-7 py-4 font-semibold text-[#0B1F4B] dark:text-white backdrop-blur-sm transition hover:bg-slate-100 dark:hover:bg-white/10"
               >
-                Explore Global Properties
+                Explore Properties
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </motion.div>
@@ -263,19 +264,20 @@ export default function LandingPage() {
           >
             <div className="relative rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#07152F]/90 p-7 shadow-xl dark:shadow-2xl backdrop-blur-xl sm:p-9">
               <div className="absolute -right-3 -top-4 rounded-full bg-[#D9A52E] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0B1F4B] shadow-lg">
-                Featured Global Asset
+                Featured opportunity
               </div>
 
               <div className="mb-7 flex items-start justify-between gap-4">
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#B78319] dark:text-[#E5B94F]">
-                    Global Portfolio
+                    Explore our projects
                   </p>
                   <h2 className="text-2xl font-bold text-[#0B1F4B] dark:text-white">
-                    International Real Estate
+                    Property Investment
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    Review vetted cross-border real estate opportunities and structured yield terms.
+                    Review available real estate opportunities and their
+                    investment information.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[#D9A52E]/20 bg-[#D9A52E]/10 p-3">
@@ -285,15 +287,15 @@ export default function LandingPage() {
 
               <div className="space-y-5 border-t border-slate-100 dark:border-white/10 pt-6">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-slate-600 dark:text-slate-300">Asset details</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Project details</span>
                   <span className="text-sm font-bold text-[#0B1F4B] dark:text-white">
                     View opportunities
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-slate-600 dark:text-slate-300">Distribution frequency</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Investment terms</span>
                   <span className="text-sm font-bold text-[#B78319] dark:text-[#F2D58A]">
-                    Quarterly / Annual
+                    Project-specific
                   </span>
                 </div>
               </div>
@@ -302,7 +304,7 @@ export default function LandingPage() {
                 to="/properties"
                 className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0B1F4B] dark:bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:opacity-95"
               >
-                View international opportunities
+                View investment opportunities
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -374,9 +376,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <SectionHeading
             centered
-            eyebrow="Global investment approach"
-            title="Real estate opportunities built around international tangible assets."
-            description="Explore the types of property acquisition, development, and investment opportunities BiggoHomes offers worldwide."
+            eyebrow="Investment approach"
+            title="Real estate opportunities built around tangible assets."
+            description="Explore the types of property acquisition, development and investment opportunities BiggoHomes may offer."
           />
 
           <motion.div
@@ -426,8 +428,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <SectionHeading
             eyebrow="Why BiggoHomes"
-            title="A clearer way to explore international property investment."
-            description="Give global investors the clarity, security, and data they need to evaluate cross-border real estate."
+            title="A clearer way to explore property investment."
+            description="Give investors the information they need to understand each opportunity, its structure and its associated risks."
           />
 
           <motion.div
@@ -463,9 +465,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <SectionHeading
             centered
-            eyebrow="The global process"
-            title="From cross-border asset selection to international reporting."
-            description="A seamless workflow designed for international investors worldwide."
+            eyebrow="The process"
+            title="From property opportunity to investor reporting."
+            description="A simple overview of how an investor may engage with a BiggoHomes opportunity."
           />
 
           <motion.div
@@ -476,9 +478,9 @@ export default function LandingPage() {
             variants={staggerContainer}
           >
             {[
-              { number: "01", title: "Explore", text: "Review available global properties, project financials, cross-border terms, and risk disclosures." },
-              { number: "02", title: "Verify & Subscribe", text: "Complete standard compliance verification and secure your fractional or direct asset allocation." },
-              { number: "03", title: "Track & Receive Yields", text: "Monitor asset milestones and receive scheduled distributions directly in your global portfolio." },
+              { number: "01", title: "Explore", text: "Review available properties, project information, investment terms and risk disclosures." },
+              { number: "02", title: "Understand & subscribe", text: "Complete the required investor checks and subscription process for an eligible opportunity." },
+              { number: "03", title: "Track & receive updates", text: "Follow project progress and view distribution records or investor reports when available." },
             ].map((step) => (
               <motion.div
                 key={step.number}
@@ -496,22 +498,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 6. INVESTMENT CORRIDORS MAP SECTION */}
       <section>
         <InvestmentCorridorsSection />
       </section>
 
-      {/* 7. FINAL CALL TO ACTION */}
+      {/* 6. FINAL CALL TO ACTION */}
       <section className="px-4 py-20 text-center sm:px-6 lg:px-8 lg:py-28 bg-[#F5F7FA] dark:bg-[#071326] border-t border-[#E5E9F0] dark:border-[#263A56]">
         <Reveal className="mx-auto max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#B78319] dark:text-[#E5B94F]">
-            Start building your global portfolio
+            Start with the right information
           </p>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#0B1F4B] dark:text-white sm:text-5xl">
-            Explore international real estate investment opportunities with BiggoHomes.
+            Explore real estate investment opportunities with BiggoHomes.
           </h2>
           <p className="mx-auto mt-5 max-w-2xl leading-8 text-[#718096] dark:text-slate-300">
-            Discover our high-yield global assets, understand project terms, and diversify your wealth across premier international real estate corridors.
+            Discover our projects, understand the investment terms and decide
+            whether an opportunity aligns with your investment objectives.
           </p>
 
           <div className="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
@@ -519,14 +521,14 @@ export default function LandingPage() {
               to="/register"
               className="inline-flex items-center justify-center gap-3 rounded-full bg-[#0B1F4B] px-8 py-4 font-semibold text-white transition hover:-translate-y-1 hover:bg-[#193866] dark:bg-[#D9A52E] dark:text-[#071326] dark:hover:bg-[#E5B94F]"
             >
-              Create an investor account
+              Create an account
               <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
               to="/properties"
               className="inline-flex items-center justify-center gap-3 rounded-full border border-[#0B1F4B]/20 px-8 py-4 font-semibold text-[#0B1F4B] transition hover:-translate-y-1 hover:border-[#D9A52E] dark:border-white/20 dark:text-white"
             >
-              Browse global properties
+              Browse properties
             </Link>
           </div>
         </Reveal>
