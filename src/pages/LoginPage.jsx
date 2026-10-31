@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Lock, Mail, User, Loader2, AlertCircle, Building2, ShieldCheck, Globe, TrendingUp, X } from 'lucide-react';
+import { ArrowRight, Lock, Mail, User, Loader2, AlertCircle, Building2, ShieldCheck, Globe, TrendingUp, X, CheckCircle2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const showcaseSlides = [
   {
@@ -24,6 +25,28 @@ const showcaseSlides = [
     description: "Track your international portfolio growth, quarterly payout distributions, and long-term equity appreciation."
   }
 ];
+
+// Custom toast notification styling helper
+const showCustomToast = (title, message) => {
+  toast(
+    <div className="flex items-start space-x-3 py-1">
+      <div className="p-2 rounded-xl bg-amber-500/10 text-[#D9A52E] flex-shrink-0 mt-0.5">
+        <CheckCircle2 className="w-5 h-5" />
+      </div>
+      <div>
+        <h4 className="text-sm font-bold text-[#0B1F4B] dark:text-white">{title}</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">{message}</p>
+      </div>
+    </div>,
+    {
+      position: "top-right",
+      autoClose: 3500,
+      hideProgressBar: true,
+      closeButton: false,
+      className: "bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 font-sans",
+    }
+  );
+};
 
 export default function AuthPage() {
   const location = useLocation();
@@ -67,9 +90,11 @@ export default function AuthPage() {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) throw error;
+        showCustomToast("Welcome Back!", "Successfully logged into your investor dashboard.");
       } else {
         const { error } = await signUp(email, password, { full_name: fullName });
         if (error) throw error;
+        showCustomToast("Account Created!", "Your BiggoHomes account has been successfully registered.");
       }
       navigate('/dashboard');
     } catch (err) {
@@ -98,8 +123,7 @@ export default function AuthPage() {
             </p>
           </div>
 
-
-{/* Animated Error Alert Box (Fades In & Fades Out Automatically) */}
+          {/* Animated Error Alert Box (Fades In & Fades Out Automatically) */}
           <AnimatePresence>
             {error && (
               <motion.div 
@@ -125,6 +149,7 @@ export default function AuthPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
           {/* Animated Tabs Header */}
           <div className="relative flex bg-slate-100 dark:bg-[#10213B] p-1.5 rounded-2xl mb-8">
             <button
@@ -153,8 +178,6 @@ export default function AuthPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
           </div>
-
-          
 
           {/* Animated Form Fields */}
           <AnimatePresence mode="wait">
