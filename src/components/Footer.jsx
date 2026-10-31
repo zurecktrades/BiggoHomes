@@ -27,26 +27,14 @@ export default function Footer() {
           </ul>
         </div>
 
-        {/* Office Column */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-[#D9A52E]">Office</h4>
-          <div className="text-sm space-y-1.5 text-slate-300 font-normal">
-            <p className="font-semibold text-white">Miami Global HQ</p>
-            <p>3323 NE 163rd Street</p>
-            <p>Suite 600</p>
-            <p>Miami, FL 33160</p>
-            <p className="pt-2 font-semibold text-[#D9A52E]">+1 (800) 555-BIGGO</p>
-          </div>
-        </div>
-
         {/* Contact Column */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-[#D9A52E]">Contact</h4>
           <ul className="space-y-2.5 text-sm font-semibold">
             <li><a href="mailto:contact@biggohomes.com" className="hover:text-white transition">contact@biggohomes.com</a></li>
-            <li><a href="#facebook" className="hover:text-white transition">Facebook</a></li>
+            {/* <li><a href="#facebook" className="hover:text-white transition">Facebook</a></li>
             <li><a href="#linkedin" className="hover:text-white transition">LinkedIn</a></li>
-            <li><a href="#twitter" className="hover:text-white transition">Twitter / X</a></li>
+            <li><a href="#twitter" className="hover:text-white transition">Twitter / X</a></li> */}
           </ul>
         </div>
 

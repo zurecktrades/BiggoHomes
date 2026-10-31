@@ -6,11 +6,12 @@ import { useAuthStore } from '../store/useAuthStore';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ProtectedRoute from '../components/ProtectedRoute';
+import ClientLayout from '../components/layouts/ClientLayout';
+import AdminLayout from '../components/layouts/AdminLayout';
 
 // Pages
 import LandingPage from '../pages/LandingPages';
 import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
 import DashboardPage from '../pages/DashboardPage';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
 import PropertiesPage from '../pages/PropertiesPage';
@@ -33,24 +34,30 @@ export default function AppRoutes() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#172338] dark:text-slate-100 transition-colors duration-300 font-sans">
-      <Navbar />
-      <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/properties" element={<PropertiesPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+      <Routes>
+        {/* --- PUBLIC ROUTES (With Navbar & Footer) --- */}
+        <Route path="/" element={<><Navbar /><main className="flex-1"><LandingPage /></main><Footer /></>} />
+        <Route path="/properties" element={<><Navbar /><main className="flex-1"><PropertiesPage /></main><Footer /></>} />
+        <Route path="/auth" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
+        <Route path="/login" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
+        <Route path="/register" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
 
-          <Route element={<ProtectedRoute />}>
+        {/* --- INVESTOR / CLIENT PORTAL (Protected + ClientLayout with Sidebar) --- */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<ClientLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            {/* You can add portfolio, transactions, settings here later */}
           </Route>
+        </Route>
 
-          <Route element={<ProtectedRoute requireAdmin={true} />}>
+        {/* --- ADMIN PORTAL (Protected + AdminLayout with Sidebar) --- */}
+        <Route element={<ProtectedRoute requireAdmin={true} />}>
+          <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
+            {/* Add other admin sub-routes here later */}
           </Route>
-        </Routes>
-      </main>
-      <Footer />
+        </Route>
+      </Routes>
     </div>
   );
 }

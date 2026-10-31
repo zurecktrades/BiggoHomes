@@ -237,7 +237,7 @@ export default function LandingPage() {
               className="flex flex-col gap-4 pt-2 sm:flex-row"
             >
               <Link
-                to="/register"
+                to="/auth"
                 className="inline-flex items-center justify-center gap-3 rounded-xl bg-[#0B1F4B] dark:bg-[#D9A52E] px-7 py-4 font-bold text-white dark:text-[#0B1F4B] shadow-lg transition hover:opacity-90"
               >
                 Become an Investor
@@ -518,7 +518,7 @@ export default function LandingPage() {
 
           <div className="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              to="/register"
+              to="/auth"
               className="inline-flex items-center justify-center gap-3 rounded-full bg-[#0B1F4B] px-8 py-4 font-semibold text-white transition hover:-translate-y-1 hover:bg-[#193866] dark:bg-[#D9A52E] dark:text-[#071326] dark:hover:bg-[#E5B94F]"
             >
               Create an account
