@@ -16,6 +16,9 @@ import DashboardPage from '../pages/DashboardPage';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
 import PropertiesPage from '../pages/PropertiesPage';
 
+//Admin Pages
+import Chat from '../pages/admin/Chat'
+
 export default function AppRoutes() {
   const { initAuth, theme } = useAuthStore();
 
@@ -54,6 +57,7 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute requireAdmin={true} />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path='/admin/chat' element={<Chat />} />
             {/* Add other admin sub-routes here later */}
           </Route>
         </Route>

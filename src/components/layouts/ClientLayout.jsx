@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import Sidebar from '../SideBar';
 import { Menu } from 'lucide-react';
+import AccountManagerChat from '../clients/AccountManagerChat';
 
 export default function ClientLayout() {
   const { profile } = useAuthStore();
@@ -61,6 +62,7 @@ export default function ClientLayout() {
         <main className="flex-1 overflow-y-auto p-2">
           <Outlet />
         </main>
+        <AccountManagerChat />
       </div>
 
     </div>

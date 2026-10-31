@@ -13,7 +13,8 @@ import {
   X,
   Globe,
   Sun,
-  Moon
+  Moon,
+  ChartArea
 } from 'lucide-react';
 import logo from '../../public/logo_transparent.png';
 import logoDark from '../../public/logoDark.png';
@@ -40,6 +41,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
     { name: 'Manage Properties', path: '/admin/properties', icon: Building },
     { name: 'Investors', path: '/admin/investors', icon: Users },
+    { name: 'Chat Inbox', path: '/admin/chat', icon: ChartArea },
     { name: 'Audit Reports', path: '/admin/reports', icon: FileText },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];

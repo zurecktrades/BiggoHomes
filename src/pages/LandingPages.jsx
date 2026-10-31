@@ -148,6 +148,45 @@ function Reveal({
 }
 
 function SectionHeading({ eyebrow, title, description, centered = false }) {
+
+useEffect(() => {
+    // Set up Tawk_API on global window object
+    window.Tawk_API = window.Tawk_API || {};
+    window.Tawk_LoadStart = new Date();
+
+    // Create and inject the Tawk.to script tag
+    const s1 = document.createElement("script");
+    const s0 = document.getElementsByTagName("script")[0];
+    
+    s1.async = true;
+    s1.src = 'https://embed.tawk.to/6ae51566dbd3773477c36043/1k67dn6qs';
+    s1.charset = 'UTF-8';
+    s1.setAttribute('crossorigin', '*');
+    s1.id = 'tawk-script';
+
+    if (s0 && s0.parentNode) {
+      s0.parentNode.insertBefore(s1, s0);
+    }
+
+    // Cleanup: Hide and remove Tawk widget when leaving LandingPage
+    return () => {
+      if (window.Tawk_API && typeof window.Tawk_API.hideWidget === 'function') {
+        window.Tawk_API.hideWidget();
+      }
+      
+      const existingScript = document.getElementById('tawk-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // Remove the floating widget container iframe created by Tawk
+      const tawkIframe = document.querySelector('.tawk-min-container, [id^="tawk-"]');
+      if (tawkIframe) {
+        tawkIframe.remove();
+      }
+    };
+  }, []);
+
   return (
     <Reveal
       className={`mb-12 ${centered ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}`}
@@ -535,4 +574,8 @@ export default function LandingPage() {
       </section>
     </main>
   );
+  
 }
+
+
+
