@@ -161,7 +161,7 @@ export default function WithdrawalPage() {
   };
 
   return (
-    <div className="space-y-6 font-sans pb-12 p-6">
+    <div className="space-y-6 font-sans pb-12  max-w-8xl p-4 mx-auto">
       
       {/* Page Header */}
       <div>

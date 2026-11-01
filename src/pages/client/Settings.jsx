@@ -195,7 +195,7 @@ export default function SettingsPage() {
   const kycStatus = profile?.kyc_status || 'unverified';
 
   return (
-    <div className="space-y-6 font-sans pb-12 max-w-8xl p-6 mx-auto">
+    <div className="space-y-6 font-sans pb-12 max-w-8xl p-4 mx-auto">
       
       {/* Page Header */}
       <div>

@@ -150,7 +150,7 @@ export default function AccountManagerPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 font-sans pb-12">
+    <div className="space-y-6 font-sans pb-12 max-w-8xl p-4 mx-auto">
       
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -169,10 +169,10 @@ export default function AccountManagerPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-max">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
         {/* Left Column: Assigned Manager Profile Card */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-4 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col justify-between h-fit">
           <div className="space-y-6 flex justify-between md:flex-col md:gap-6">
             
             <div className="text-center space-y-3">
@@ -206,8 +206,8 @@ export default function AccountManagerPage() {
           </div>
         </div>
 
-        {/* Right Column: Chat Screen */}
-        <div className="lg:col-span-8 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden">
+        {/* Right Column: Chat Screen with Max Height on Mobile & Desktop */}
+        <div className="lg:col-span-8 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden h-[350px] sm:h-[380px] lg:h-[500px]">
           {/* Message Feed */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50/30 dark:bg-[#071326]/30">
             {loading ? (
@@ -272,7 +272,7 @@ export default function AccountManagerPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder={`Message ${managerName}...`}
-              className="flex-1 px-4 py-3 text-xs rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F4B] focus:outline-none focus:border-amber-500 text-slate-900 dark:text-white"
+              className="flex-1 px-4 py-3 text-base sm:text-xs rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F4B] focus:outline-none focus:border-amber-500 text-slate-900 dark:text-white"
             />
             <button
               type="submit"

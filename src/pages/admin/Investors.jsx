@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
   );
 
   return (
-    <div className="space-y-6 font-sans pb-12 max-w-7xl mx-auto">
+    <div className="space-y-6 font-sans pb-12 p-4 max-w-8xl mx-auto">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

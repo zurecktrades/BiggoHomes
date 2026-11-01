@@ -37,7 +37,7 @@ export default function PropertiesPage() {
   });
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-8 font-sans max-w-8xl p-4 mx-auto pb-12">
       
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

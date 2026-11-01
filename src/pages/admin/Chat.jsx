@@ -253,7 +253,7 @@ export default function AdminMessagesPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-140px)] bg-white dark:bg-[#0B1F4B]/60 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-lg flex overflow-hidden font-sans">
+    <div className="h-[calc(100vh-140px)] bg-white dark:bg-[#0B1F4B]/60 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg flex overflow-hidden font-sans">
       
       {/* Left Sidebar: Investor List */}
       <div className="w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-[#071326]/40">

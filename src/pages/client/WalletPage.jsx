@@ -104,7 +104,7 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="space-y-8 font-sans pb-12">
+    <div className="space-y-8 font-sans pb-12 max-w-8xl p-4 mx-auto">
       
       {/* Header */}
       <div>

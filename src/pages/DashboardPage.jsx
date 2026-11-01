@@ -106,7 +106,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 pb-12 font-sans">
+    <div className="space-y-8 pb-12 font-sans max-w-8xl p-4 mx-auto">
       
       {/* Top Banner / Welcome Card */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#0B1F4B] via-[#102a63] to-[#0B1F4B] p-6 sm:p-8 text-white shadow-xl border border-amber-500/20">
@@ -205,7 +205,7 @@ export default function DashboardPage() {
           <div className="mt-4 flex items-baseline justify-between">
             <h3 className="text-2xl sm:text-3xl font-sans font-bold">${(profile?.account_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
             <span className="text-xs font-bold text-amber-500 group-hover:translate-x-1 transition flex items-center">
-              Manage <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              Mgt <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </span>
           </div>
           <p className="text-[11px] text-slate-400 mt-2">Click to view wallet & history</p>

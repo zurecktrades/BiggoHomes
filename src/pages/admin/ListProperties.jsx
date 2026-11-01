@@ -206,7 +206,7 @@ export default function ListProperties() {
   };
 
   return (
-    <div className="space-y-10 font-sans p-2">
+    <div className="space-y-10 font-sans p-4 max-w-8xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Create / Edit Property Form */}

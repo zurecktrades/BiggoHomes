@@ -30,6 +30,7 @@ import Chat from '../pages/admin/Chat';
 import ListProperties from '../pages/admin/ListProperties';
 import Investors from '../pages/admin/Investors';
 import AdminTransactionsPage from '../pages/admin/AdminTransaction';
+import ScrollToTop from '../components/ScrollToTop';
 
 export default function AppRoutes() {
   const { initAuth, theme } = useAuthStore();
@@ -49,6 +50,7 @@ export default function AppRoutes() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#071326] text-[#172338] dark:text-slate-100 transition-colors duration-300 font-sans">
+      <ScrollToTop />
       <Routes>
         {/* --- PUBLIC ROUTES (With Navbar & Footer) --- */}
         <Route path="/" element={<><Navbar /><main className="flex-1"><LandingPage /></main><Footer /></>} />
@@ -62,12 +64,12 @@ export default function AppRoutes() {
           <Route element={<ClientLayout />}>
             <Route path="/dashboard" element={<InvestorDashboard />} />
             <Route path="/properties-listing" element={<Properties />} />
-            <Route path="/properties/:id" element={<PropertyDetailsPage />} /> {/* Dedicated Property Page */}
-            <Route path="/wallet" element={<WalletPage />} /> {/* Wallet & Transactions */}
-            <Route path="/withdraw" element={<WithdrawPage />} /> {/* Wallet & Transactions */}
-            <Route path="/transactions" element={<TransactionsPage />} /> {/* Wallet & Transactions */}
-            <Route path="/chat-manager" element={<AccountManagerPage />} /> {/* Wallet & Transactions */}
-            <Route path="/settings" element={<InvestorSettings />} /> {/* Add portfolio, transactions, settings here */}
+            <Route path="/properties/:id" element={<PropertyDetailsPage />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/withdraw" element={<WithdrawPage />} />
+            <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/chat-manager" element={<AccountManagerPage />} />
+            <Route path="/settings" element={<InvestorSettings />} />
           </Route>
         </Route>
 
@@ -79,7 +81,6 @@ export default function AppRoutes() {
             <Route path="/admin/listing" element={<ListProperties />} />
             <Route path="/admin/investors" element={<Investors />} />
             <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
-            {/* Add other admin sub-routes here */}
           </Route>
         </Route>
       </Routes>

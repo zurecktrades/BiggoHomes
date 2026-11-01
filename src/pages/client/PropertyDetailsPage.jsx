@@ -160,7 +160,7 @@ export default function PropertyDetailsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 font-sans pb-12">
+    <div className="max-w-6xl mx-auto space-y-6 font-sans pb-12 max-w-8xl p-4">
       
       {/* Top Navigation & User Wallet Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
