@@ -9,15 +9,27 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import ClientLayout from '../components/layouts/ClientLayout';
 import AdminLayout from '../components/layouts/AdminLayout';
 
-// Pages
+// Public Pages
 import LandingPage from '../pages/LandingPages';
 import LoginPage from '../pages/LoginPage';
-import DashboardPage from '../pages/DashboardPage';
-import AdminDashboardPage from '../pages/AdminDashboardPage';
 import PropertiesPage from '../pages/PropertiesPage';
 
-//Admin Pages
-import Chat from '../pages/admin/Chat'
+// Client Pages
+import InvestorDashboard from '../pages/DashboardPage';
+import Properties from '../pages/client/Properties';
+import PropertyDetailsPage from '../pages/client/PropertyDetailsPage';
+import WalletPage from '../pages/client/WalletPage';
+import AccountManagerPage from '../pages/client/ChatManager';
+import TransactionsPage from '../pages/client/TransactionHistory';
+import InvestorSettings from '../pages/client/Settings';
+import WithdrawPage from '../pages/client/Withdraw';
+
+// Admin Pages
+import AdminDashboardPage from '../pages/AdminDashboardPage';
+import Chat from '../pages/admin/Chat';
+import ListProperties from '../pages/admin/ListProperties';
+import Investors from '../pages/admin/Investors';
+import AdminTransactionsPage from '../pages/admin/AdminTransaction';
 
 export default function AppRoutes() {
   const { initAuth, theme } = useAuthStore();
@@ -48,8 +60,14 @@ export default function AppRoutes() {
         {/* --- INVESTOR / CLIENT PORTAL (Protected + ClientLayout with Sidebar) --- */}
         <Route element={<ProtectedRoute />}>
           <Route element={<ClientLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            {/* You can add portfolio, transactions, settings here later */}
+            <Route path="/dashboard" element={<InvestorDashboard />} />
+            <Route path="/properties-listing" element={<Properties />} />
+            <Route path="/properties/:id" element={<PropertyDetailsPage />} /> {/* Dedicated Property Page */}
+            <Route path="/wallet" element={<WalletPage />} /> {/* Wallet & Transactions */}
+            <Route path="/withdraw" element={<WithdrawPage />} /> {/* Wallet & Transactions */}
+            <Route path="/transactions" element={<TransactionsPage />} /> {/* Wallet & Transactions */}
+            <Route path="/chat-manager" element={<AccountManagerPage />} /> {/* Wallet & Transactions */}
+            <Route path="/settings" element={<InvestorSettings />} /> {/* Add portfolio, transactions, settings here */}
           </Route>
         </Route>
 
@@ -57,8 +75,11 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute requireAdmin={true} />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
-            <Route path='/admin/chat' element={<Chat />} />
-            {/* Add other admin sub-routes here later */}
+            <Route path="/admin/chat" element={<Chat />} />
+            <Route path="/admin/listing" element={<ListProperties />} />
+            <Route path="/admin/investors" element={<Investors />} />
+            <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
+            {/* Add other admin sub-routes here */}
           </Route>
         </Route>
       </Routes>

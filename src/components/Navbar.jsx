@@ -72,8 +72,7 @@ export default function Navbar() {
                 to={profile?.role === 'admin' ? "/admin" : "/dashboard"}
                 className="flex items-center space-x-2 bg-[#0B1E3D] text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-800 transition"
               >
-                <LayoutDashboard className="w-4 h-4 text-amber-400" />
-                <span>Dashboard</span>
+                <span>Go back</span>
               </Link>
               <button
                 onClick={handleLogout}

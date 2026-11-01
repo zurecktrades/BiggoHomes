@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useLocation } from 'react-router-dom';
 import { Send, UserCheck, MessageSquare, X } from 'lucide-react';
 
 export default function AccountManagerChat() {
   const { user, profile } = useAuthStore();
+  const location = useLocation();
+
+  // 1. ALL HOOKS DECLARED UNCONDITIONALLY AT THE TOP IN A FIXED ORDER
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -12,7 +16,7 @@ export default function AccountManagerChat() {
   const chatEndRef = useRef(null);
 
   // Extract designated manager details from investor profile (with fallbacks)
-  const managerName = profile?.manager_name || 'BiggoHomes Concierge';
+  const managerName = profile?.manager_name || 'BiggoHomes';
   const managerAvatar = profile?.manager_avatar;
   const managerInitials = managerName
     .split(' ')
@@ -21,9 +25,9 @@ export default function AccountManagerChat() {
     .toUpperCase()
     .slice(0, 2);
 
-  // Fetch admin profile ID & message history
+  // Fetch admin profile ID & active message history
   useEffect(() => {
-    if (!user) return;
+    if (!user || location.pathname === '/chat-manager') return;
 
     const fetchChatDetails = async () => {
       // 1. Fetch main admin profile ID
@@ -36,10 +40,11 @@ export default function AccountManagerChat() {
 
       if (adminData) setAdminId(adminData.id);
 
-      // 2. Fetch past conversation
+      // 2. Fetch past active conversation
       const { data: history } = await supabase
         .from('messages')
         .select('*')
+        .eq('status', 'active')
         .or(`and(sender_id.eq.${user.id},receiver_id.eq.${adminData?.id}),and(sender_id.eq.${adminData?.id},receiver_id.eq.${user.id})`)
         .order('created_at', { ascending: true });
 
@@ -56,8 +61,9 @@ export default function AccountManagerChat() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           if (
-            (payload.new.sender_id === user.id && payload.new.receiver_id === adminId) ||
-            (payload.new.sender_id === adminId && payload.new.receiver_id === user.id)
+            payload.new.status === 'active' &&
+            ((payload.new.sender_id === user.id && payload.new.receiver_id === adminId) ||
+             (payload.new.sender_id === adminId && payload.new.receiver_id === user.id))
           ) {
             setMessages((prev) => {
               if (prev.some((msg) => msg.id === payload.new.id)) return prev;
@@ -71,7 +77,7 @@ export default function AccountManagerChat() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, adminId]);
+  }, [user, adminId, location.pathname]);
 
   // Auto scroll
   useEffect(() => {
@@ -89,12 +95,18 @@ export default function AccountManagerChat() {
       sender_id: user.id,
       receiver_id: adminId,
       content: msgText,
+      status: 'active',
     });
 
     if (error) {
       console.error('Failed to send message:', error);
     }
   };
+
+  // ✅ SAFELY RETURN NULL HERE AFTER ALL HOOKS HAVE EXECUTED UNCONDITIONALLY
+  if (location.pathname === '/chat-manager') {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50 font-sans">
@@ -130,7 +142,7 @@ export default function AccountManagerChat() {
               </div>
               <div>
                 <h4 className="text-sm font-bold">{managerName}</h4>
-                <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Dedicated Account Manager</p>
+                <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Account Manager</p>
               </div>
             </div>
             <button 
@@ -151,7 +163,7 @@ export default function AccountManagerChat() {
               </div>
             ) : (
               messages.map((msg) => {
-                const isMe = msg.sender_id === user.id;
+                const isMe = msg.sender_id === user?.id;
                 return (
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] p-3 rounded-2xl text-xs font-medium leading-relaxed ${

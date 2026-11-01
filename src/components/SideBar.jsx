@@ -14,7 +14,11 @@ import {
   Globe,
   Sun,
   Moon,
-  ChartArea
+  ChartArea,
+  MessagesSquare,
+  Briefcase,
+  BanknoteCheck,
+  ArrowUpRight
 } from 'lucide-react';
 import logo from '../../public/logo_transparent.png';
 import logoDark from '../../public/logoDark.png';
@@ -29,9 +33,11 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
   // Navigation items for Standard Investors
   const investorLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Explore Properties', path: '/properties', icon: Building },
-    { name: 'My Portfolio', path: '/portfolio', icon: PieChart },
+    { name: 'My Portfolio', path: '/dashboard', icon: PieChart },
+    { name: 'Explore Properties', path: '/properties-listing', icon: Building },
+    { name: 'Wallet Funding', path: '/wallet', icon: Wallet },
+    { name: 'Withdraw Funds', path: '/withdraw', icon: ArrowUpRight },
+    { name: 'Contact Manager', path: '/chat-manager', icon: Briefcase },
     { name: 'Transactions', path: '/transactions', icon: Wallet },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
@@ -39,10 +45,10 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
   // Navigation items for Administrators
   const adminLinks = [
     { name: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
-    { name: 'Manage Properties', path: '/admin/properties', icon: Building },
+    { name: 'Manage Properties', path: '/admin/listing', icon: Building },
     { name: 'Investors', path: '/admin/investors', icon: Users },
-    { name: 'Chat Inbox', path: '/admin/chat', icon: ChartArea },
-    { name: 'Audit Reports', path: '/admin/reports', icon: FileText },
+    { name: 'Chat Inbox', path: '/admin/chat', icon: MessagesSquare },
+    { name: 'Log Transaction', path: '/admin/transactions', icon: FileText },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 
@@ -107,9 +113,6 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
         {/* Dynamic Navigation Links */}
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          <p className="px-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">
-            {role === 'admin' ? 'Admin Portal' : 'Investor Portal'}
-          </p>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;

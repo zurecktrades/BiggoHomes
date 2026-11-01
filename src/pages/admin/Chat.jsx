@@ -1,7 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
-import { useAuthStore } from '../store/useAuthStore';
-import { Send, Search, MessageSquare, Settings } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuthStore } from '../../store/useAuthStore';
+import { Send, Search, MessageSquare, Settings, Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
+
+const showCustomToast = (title, message, type = 'success') => {
+  toast(
+    <div className="flex items-start space-x-3 py-1">
+      <div className={`p-2 rounded-xl flex-shrink-0 mt-0.5 ${
+        type === 'success' ? 'bg-amber-500/10 text-[#D9A52E]' : 'bg-red-500/10 text-red-500'
+      }`}>
+        {type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+      </div>
+      <div>
+        <h4 className="text-sm font-bold text-[#0B1F4B] dark:text-white">{title}</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">{message}</p>
+      </div>
+    </div>,
+    {
+      position: "top-right",
+      autoClose: 3500,
+      hideProgressBar: true,
+      closeButton: false,
+      className: "bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 font-sans",
+    }
+  );
+};
 
 export default function AdminMessagesPage() {
   const { user } = useAuthStore();
@@ -10,38 +34,94 @@ export default function AdminMessagesPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
   
-  // Manager configuration states
   const [isEditingManager, setIsEditingManager] = useState(false);
   const [managerNameInput, setManagerNameInput] = useState('');
-  const [managerAvatarInput, setManagerAvatarInput] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const messagesEndRef = useRef(null);
 
-  // Load all registered investor profiles
+  // Load investors & unread counts
   useEffect(() => {
-    const fetchInvestors = async () => {
-      const { data } = await supabase
+    const fetchInvestorsAndUnreads = async () => {
+      const { data: invData } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'investor')
         .order('full_name', { ascending: true });
 
-      if (data) setInvestors(data);
+      if (invData) {
+        setInvestors(invData);
+
+        // Fetch unread messages count where receiver is current admin
+        const { data: msgData } = await supabase
+          .from('messages')
+          .select('sender_id')
+          .eq('receiver_id', user.id)
+          .eq('is_read', false);
+
+        if (msgData) {
+          const counts = {};
+          msgData.forEach((m) => {
+            counts[m.sender_id] = (counts[m.sender_id] || 0) + 1;
+          });
+          setUnreadCounts(counts);
+        }
+      }
     };
-    fetchInvestors();
-  }, []);
 
-  // Update manager input fields whenever selectedInvestor changes
+    if (user) fetchInvestorsAndUnreads();
+  }, [user]);
+
+  // Global Realtime Listener for Incoming Messages across ALL investors
   useEffect(() => {
-    if (selectedInvestor) {
-      setManagerNameInput(selectedInvestor.manager_name || 'BiggoHomes Concierge');
-      setManagerAvatarInput(selectedInvestor.manager_avatar || '');
-      setIsEditingManager(false);
-    }
-  }, [selectedInvestor]);
+    if (!user) return;
 
-  // Fetch messages for selected investor & subscribe to realtime
+    const globalChannel = supabase
+      .channel('admin_global_messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new;
+          // If message is sent TO admin FROM an investor
+          if (newMsg.receiver_id === user.id) {
+            // If this investor is NOT currently selected, increment unread badge count
+            if (!selectedInvestor || selectedInvestor.id !== newMsg.sender_id) {
+              setUnreadCounts((prev) => ({
+                ...prev,
+                [newMsg.sender_id]: (prev[newMsg.sender_id] || 0) + 1,
+              }));
+              showCustomToast("New Message", "You have received a new message from an investor.");
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [user, selectedInvestor]);
+
+  // Select Investor & mark messages as read
+  const handleSelectInvestor = async (inv) => {
+    setSelectedInvestor(inv);
+    setManagerNameInput(inv.manager_name || 'BiggoHomes Concierge');
+    setIsEditingManager(false);
+
+    // Clear unread badge for this investor
+    setUnreadCounts((prev) => ({ ...prev, [inv.id]: 0 }));
+
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('sender_id', inv.id)
+      .eq('receiver_id', user.id);
+  };
+
+  // Fetch conversation for selected investor
   useEffect(() => {
     if (!selectedInvestor || !user) return;
 
@@ -57,7 +137,7 @@ export default function AdminMessagesPage() {
 
     fetchConversation();
 
-    const channel = supabase
+    const chatChannel = supabase
       .channel(`admin_chat_${selectedInvestor.id}`)
       .on(
         'postgres_changes',
@@ -77,7 +157,7 @@ export default function AdminMessagesPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(chatChannel);
     };
   }, [selectedInvestor, user]);
 
@@ -96,31 +176,74 @@ export default function AdminMessagesPage() {
       sender_id: user.id,
       receiver_id: selectedInvestor.id,
       content: text,
+      is_read: false,
     });
   };
 
-  const handleUpdateManager = async (e) => {
+  // Save text-only manager details update
+  const handleSaveManagerName = async (e) => {
     e.preventDefault();
     if (!selectedInvestor) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        manager_name: managerNameInput,
-        manager_avatar: managerAvatarInput
-      })
-      .eq('id', selectedInvestor.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ manager_name: managerNameInput })
+        .eq('id', selectedInvestor.id);
 
-    if (!error) {
-      setSelectedInvestor(prev => ({
-        ...prev,
-        manager_name: managerNameInput,
-        manager_avatar: managerAvatarInput
-      }));
+      if (error) throw error;
+
+      setSelectedInvestor((prev) => ({ ...prev, manager_name: managerNameInput }));
+      setInvestors((prev) =>
+        prev.map((inv) => (inv.id === selectedInvestor.id ? { ...inv, manager_name: managerNameInput } : inv))
+      );
+
       setIsEditingManager(false);
-      alert('Account manager details updated successfully for this client!');
-    } else {
-      console.error('Failed to update manager:', error);
+      showCustomToast("Manager Updated", `Account manager set to "${managerNameInput}" for ${selectedInvestor.full_name}.`);
+    } catch (err) {
+      showCustomToast("Update Failed", err.message || "Failed to update profile.", "error");
+    }
+  };
+
+  const handleImageUploadAndSave = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedInvestor) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedInvestor.id}-${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('manager-avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('manager-avatars')
+        .getPublicUrl(fileName);
+
+      const avatarUrl = publicUrlData.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ manager_name: managerNameInput, manager_avatar: avatarUrl })
+        .eq('id', selectedInvestor.id);
+
+      if (updateError) throw updateError;
+
+      setSelectedInvestor(prev => ({ ...prev, manager_name: managerNameInput, manager_avatar: avatarUrl }));
+      setInvestors((prev) =>
+        prev.map((inv) => (inv.id === selectedInvestor.id ? { ...inv, manager_name: managerNameInput, manager_avatar: avatarUrl } : inv))
+      );
+      
+      setIsEditingManager(false);
+      showCustomToast("Profile & Photo Updated", `Account manager photo uploaded for ${selectedInvestor.full_name}.`);
+    } catch (err) {
+      showCustomToast("Upload Failed", err.message || "Failed to upload manager photo.", "error");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -149,25 +272,38 @@ export default function AdminMessagesPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
-          {filteredInvestors.map((inv) => (
-            <button
-              key={inv.id}
-              onClick={() => setSelectedInvestor(inv)}
-              className={`w-full p-4 text-left flex items-center space-x-3 transition ${
-                selectedInvestor?.id === inv.id 
-                  ? 'bg-amber-500/10 border-l-4 border-amber-500' 
-                  : 'hover:bg-slate-100 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="w-9 h-9 rounded-xl bg-[#0B1F4B] text-amber-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
-                {inv.full_name ? inv.full_name.slice(0, 2).toUpperCase() : 'IN'}
-              </div>
-              <div className="truncate flex-1">
-                <p className="text-xs font-bold truncate">{inv.full_name || 'Anonymous Investor'}</p>
-                <p className="text-[10px] text-slate-500 truncate">{inv.email}</p>
-              </div>
-            </button>
-          ))}
+          {filteredInvestors.map((inv) => {
+            const unreadCount = unreadCounts[inv.id] || 0;
+            return (
+              <button
+                key={inv.id}
+                onClick={() => handleSelectInvestor(inv)}
+                className={`w-full p-4 text-left flex items-center justify-between transition ${
+                  selectedInvestor?.id === inv.id 
+                    ? 'bg-amber-500/10 border-l-4 border-amber-500' 
+                    : 'hover:bg-slate-100 dark:hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center space-x-3 truncate">
+                  <div className="w-9 h-9 rounded-xl bg-[#0B1F4B] text-amber-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                    {inv.full_name ? inv.full_name.slice(0, 2).toUpperCase() : 'IN'}
+                  </div>
+                  <div className="truncate">
+                    <p className={`text-xs truncate ${unreadCount > 0 ? 'font-extrabold text-amber-500' : 'font-bold'}`}>
+                      {inv.full_name || 'Anonymous Investor'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 truncate">{inv.email}</p>
+                  </div>
+                </div>
+
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-[#0B1F4B] text-[10px] font-extrabold animate-pulse flex-shrink-0">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -175,7 +311,6 @@ export default function AdminMessagesPage() {
       <div className="flex-1 flex flex-col bg-white dark:bg-[#0B1F4B]">
         {selectedInvestor ? (
           <>
-            {/* Header */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0B1F4B]">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500 text-[#0B1F4B] font-extrabold flex items-center justify-center text-sm overflow-hidden">
@@ -195,48 +330,56 @@ export default function AdminMessagesPage() {
 
               <button
                 onClick={() => setIsEditingManager(!isEditingManager)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-xs font-bold flex items-center space-x-1.5 transition"
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-xs font-bold flex items-center space-x-1.5 transition"
               >
                 <Settings className="w-3.5 h-3.5" />
                 <span>{isEditingManager ? 'Close Config' : 'Configure Manager'}</span>
               </button>
             </div>
 
-            {/* Slide-down configuration drawer for the admin */}
             {isEditingManager && (
-              <form onSubmit={handleUpdateManager} className="p-4 bg-slate-50 dark:bg-[#071326] border-b border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="p-4 bg-slate-50 dark:bg-[#071326] border-b border-slate-200 dark:border-slate-800 space-y-3">
                 <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Set Account Manager for {selectedInvestor.full_name}</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-6">
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Manager Name</label>
-                    <input
-                      type="text"
-                      value={managerNameInput}
-                      onChange={(e) => setManagerNameInput(e.target.value)}
-                      placeholder="e.g. Sarah Jenkins"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] focus:outline-none focus:border-amber-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={managerNameInput}
+                        onChange={(e) => setManagerNameInput(e.target.value)}
+                        placeholder="e.g. Sarah Jenkins"
+                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] focus:outline-none focus:border-amber-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveManagerName}
+                        className="px-3 py-2 bg-amber-500 text-[#0B1F4B] text-xs font-bold rounded-xl hover:bg-amber-400 transition"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Manager Photo URL</label>
-                    <input
-                      type="text"
-                      value={managerAvatarInput}
-                      onChange={(e) => setManagerAvatarInput(e.target.value)}
-                      placeholder="https://example.com/photo.jpg"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] focus:outline-none focus:border-amber-500"
-                    />
+
+                  <div className="sm:col-span-6">
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Upload Manager Photo</label>
+                    <label className="flex items-center justify-center space-x-2 w-full px-3 py-2 text-xs rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-[#10213B] cursor-pointer hover:border-amber-500 transition">
+                      {uploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-amber-500" />
+                          <span className="truncate">Choose Image File</span>
+                        </>
+                      )}
+                      <input type="file" accept="image/*" onChange={handleImageUploadAndSave} disabled={uploading} className="hidden" />
+                    </label>
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-[#D9A52E] text-[#0B1F4B] text-xs font-bold shadow-md hover:opacity-90 transition"
-                  >
-                    Save Manager Details
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
 
             {/* Messages */}

@@ -19,17 +19,27 @@ export const useAuthStore = create((set, get) => ({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
-        set({ user: session.user });
-        await get().fetchProfile(session.user.id);
+        const isBanned = await get().fetchProfile(session.user.id);
+        if (isBanned) {
+          await supabase.auth.signOut();
+          set({ user: null, profile: null });
+        } else {
+          set({ user: session.user });
+        }
       }
 
       supabase.auth.onAuthStateChange(async (_event, session) => {
         const currentUser = session?.user ?? null;
-        set({ user: currentUser });
         if (currentUser) {
-          await get().fetchProfile(currentUser.id);
+          const isBanned = await get().fetchProfile(currentUser.id);
+          if (isBanned) {
+            await supabase.auth.signOut();
+            set({ user: null, profile: null });
+          } else {
+            set({ user: currentUser });
+          }
         } else {
-          set({ profile: null });
+          set({ user: null, profile: null });
         }
       });
     } catch (error) {
@@ -49,20 +59,35 @@ export const useAuthStore = create((set, get) => ({
 
       if (error) {
         console.error('Error fetching profile:', error);
+        return false;
       } else {
+        // Check if account is banned
+        if (data?.status === 'banned') {
+          return true; // Flag as banned
+        }
         set({ profile: data });
+        return false;
       }
     } catch (err) {
       console.error('Profile fetch exception:', err);
+      return false;
     }
   },
 
   signIn: async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
+    
     if (data?.user) {
+      // Check if user is banned immediately upon sign in
+      const isBanned = await get().fetchProfile(data.user.id);
+      if (isBanned) {
+        await supabase.auth.signOut();
+        set({ user: null, profile: null });
+        return { error: { message: 'Your account has been suspended. Please contact support.' } };
+      }
+
       set({ user: data.user });
-      await get().fetchProfile(data.user.id);
     }
     return { data };
   },
@@ -79,15 +104,23 @@ export const useAuthStore = create((set, get) => ({
     
     // If sign up creates a session immediately (email confirmation disabled in Supabase)
     if (data?.user) {
-      set({ user: data.user });
       // Insert profile record manually if trigger isn't set up
       await supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: metadata.full_name || '',
         role: 'investor',
+        status: 'active',
         updated_at: new Date(),
       });
-      await get().fetchProfile(data.user.id);
+      
+      const isBanned = await get().fetchProfile(data.user.id);
+      if (isBanned) {
+        await supabase.auth.signOut();
+        set({ user: null, profile: null });
+        return { error: { message: 'Your account has been suspended.' } };
+      }
+
+      set({ user: data.user });
     }
     return { data };
   },

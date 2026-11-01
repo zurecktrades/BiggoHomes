@@ -1,8 +1,10 @@
 import React from 'react'
-
+import Properties from '../pages/client/Properties'
 const PropertiesPage = () => {
   return (
-    <div>PropertiesPage</div>
+    <div>
+      <Properties />
+    </div>
   )
 }
 
