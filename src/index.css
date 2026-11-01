@@ -17,3 +17,23 @@ iframe[src*="netlify"],
   display: none !important;
   visibility: hidden !important;
 }
+
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  input, select,textarea{
+    font-family: sans-serif;
+    font-size: 16px !important;
+  }
+}
+
+@media (min-width: 640px) {
+  input, select,textarea{
+    font-family: sans-serif;
+    font-size: 0.875rem !important;
+  }
+  
+}
