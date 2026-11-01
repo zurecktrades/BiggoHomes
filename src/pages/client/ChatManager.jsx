@@ -198,10 +198,6 @@ export default function AccountManagerPage() {
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Response Time</p>
                 <p className="font-sans font-bold text-emerald-500 mt-0.5">&lt; 15 Mins</p>
               </div>
-              <div className="p-2 rounded-2xl bg-slate-50 dark:bg-[#071326] border border-slate-200 dark:border-slate-800">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Escrow Desk</p>
-                <p className="font-sans font-bold text-amber-500 mt-0.5">Active</p>
-              </div>
             </div>
           </div>
         </div>
