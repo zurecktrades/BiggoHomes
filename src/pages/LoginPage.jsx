@@ -85,32 +85,15 @@ export default function AuthPage() {
   }, []);
 
   // Send Custom OTP Email via Resend
-  const sendResendOTPEmail = async (toEmail, code) => {
-    const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
-    if (!RESEND_API_KEY) {
-      throw new Error("Resend API key is missing in environment variables.");
-    }
-
-    const response = await fetch('https://api.resend.com/emails', {
+ const sendResendOTPEmail = async (toEmail, code) => {
+    const response = await fetch('/api/send-otp', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'BiggoHomes <onboarding@resend.dev>',
-        to: [toEmail],
-        subject: 'Your BiggoHomes Verification Code',
-        html: `
-          <div style="font-family: sans-serif; padding: 24px; background: #071326; color: #ffffff; border-radius: 16px; max-width: 480px; margin: auto;">
-            <h2 style="color: #D9A52E; margin-bottom: 8px;">BiggoHomes Security Desk</h2>
-            <p style="color: #94a3b8; font-size: 14px;">Your 6-digit email verification code is:</p>
-            <div style="background: #0B1F4B; padding: 18px; border-radius: 12px; text-align: center; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #D9A52E; margin: 24px 0; border: 1px solid rgba(217, 165, 46, 0.2);">
-              ${code}
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: 16px;">This code will expire in 15 minutes. If you did not request this, please ignore this email.</p>
-          </div>
-        `
+        email: toEmail,
+        code: code
       })
     });
 
@@ -119,7 +102,6 @@ export default function AuthPage() {
       throw new Error(errorData.message || 'Failed to send verification email.');
     }
   };
-
   // Handle Modern OTP Box Input Changes & Navigation via useRef
   const handleOtpChange = (value, index) => {
     if (isNaN(value)) return; // Only allow numbers
