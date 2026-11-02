@@ -29,11 +29,13 @@ export default function MyPropertiesPage() {
     const fetchUserInvestments = async () => {
         setLoading(true);
         try {
+            // Strictly fetch only active investments where amount > 0
             const { data, error } = await supabase
                 .from('investments')
                 .select('*, properties(*)')
                 .eq('user_id', user.id)
                 .eq('status', 'active')
+                .gt('amount', 0)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -65,6 +67,8 @@ export default function MyPropertiesPage() {
             setInvestments(parsedInvestments);
             if (parsedInvestments.length > 0) {
                 setSelectedPropId(parsedInvestments[0].id);
+            } else {
+                setSelectedPropId(null);
             }
         } catch (err) {
             console.error(err);
@@ -86,6 +90,7 @@ export default function MyPropertiesPage() {
         setSelling(true);
 
         try {
+            // 1. Fetch current profile account balance
             const { data: userProfile, error: profErr } = await supabase
                 .from('profiles')
                 .select('account_balance')
@@ -95,22 +100,69 @@ export default function MyPropertiesPage() {
             if (profErr) throw profErr;
 
             const refundAmount = investmentToSell.principal;
+            const tokensToReturn = Number(investmentToSell.tokens_purchased || 1);
+            const propertyId = investmentToSell.property_id;
+
+            // 2. Refund exact principal to user account balance
             const newBalance = (userProfile.account_balance || 0) + refundAmount;
+            const { error: balErr } = await supabase
+                .from('profiles')
+                .update({ account_balance: newBalance })
+                .eq('id', user.id);
 
-            await supabase.from('profiles').update({ account_balance: newBalance }).eq('id', user.id);
-            await supabase.from('investments').update({ status: 'cancelled' }).eq('id', investmentToSell.id);
+            if (balErr) throw balErr;
 
+            // 3. Reset investment values to 0 and set status to 'cancelled'
+            const { error: invResetErr } = await supabase
+                .from('investments')
+                .update({ 
+                    status: 'cancelled',
+                    amount: 0,
+                    expected_roi_amount: 0,
+                    tokens_purchased: 0,
+                    profit_schedule: []
+                })
+                .eq('id', investmentToSell.id);
+
+            if (invResetErr) throw invResetErr;
+
+            // 4. Return tokens back to the Property's public available_tokens pool
+            if (propertyId) {
+                const { data: propData } = await supabase
+                    .from('properties')
+                    .select('available_tokens, funded_amount, status')
+                    .eq('id', propertyId)
+                    .single();
+
+                if (propData) {
+                    const updatedAvailableTokens = Number(propData.available_tokens || 0) + tokensToReturn;
+                    const updatedFundedAmount = Math.max(0, Number(propData.funded_amount || 0) - refundAmount);
+
+                    await supabase
+                        .from('properties')
+                        .update({ 
+                            available_tokens: updatedAvailableTokens,
+                            funded_amount: updatedFundedAmount,
+                            status: propData.status === 'fully_funded' ? 'active' : propData.status
+                        })
+                        .eq('id', propertyId);
+                }
+            }
+
+            // 5. Log liquidation in user transactions ledger
             await supabase.from('transactions').insert({
                 user_id: user.id,
                 type: 'deposit',
                 amount: refundAmount,
-                description: `Liquidated shares in ${investmentToSell.properties?.title}. (Profit forfeited)`,
+                description: `Liquidated ${tokensToReturn} share(s) in ${investmentToSell.properties?.title || 'Property'}. (Profits forfeited)`,
                 reference_id: `LIQ-${Date.now().toString().slice(-6)}`
             });
 
-            toast.success(`Principal of $${refundAmount.toLocaleString()} refunded. Profits forfeited.`);
+            toast.success(`Principal of $${refundAmount.toLocaleString()} refunded. Profits forfeited and shares reset.`);
+            
             setShowSellModal(false);
             setInvestmentToSell(null);
+            
             if (fetchProfile) fetchProfile();
             fetchUserInvestments();
         } catch (err) {
@@ -138,10 +190,10 @@ export default function MyPropertiesPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="max-w-md w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl text-center relative overflow-hidden"
+                            className="max-w-md w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-md p-8 shadow-2xl text-center relative overflow-hidden"
                         >
                             <div className="absolute top-0 left-0 right-0 h-2 bg-red-500" />
-                            <div className="mx-auto w-16 h-16 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mb-6">
+                            <div className="mx-auto w-16 h-16 rounded-md bg-red-500/10 text-red-500 flex items-center justify-center mb-6">
                                 <AlertTriangle className="w-8 h-8" />
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Confirm Share Liquidation</h3>
@@ -151,7 +203,7 @@ export default function MyPropertiesPage() {
                             <div className="flex space-x-3">
                                 <button onClick={() => setShowSellModal(false)} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Cancel</button>
                                 <button onClick={handleSellShares} disabled={selling} className="flex-1 py-3 rounded-xl bg-red-500 text-white text-xs font-bold">
-                                    {selling ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Forfeit & Sell'}
+                                    {selling ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Forfeit/Sell'}
                                 </button>
                             </div>
                         </motion.div>
@@ -161,15 +213,15 @@ export default function MyPropertiesPage() {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="p-6 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
                     <div className="text-slate-400 text-xs font-bold uppercase">Total Invested</div>
                     <div className="text-2xl font-sans font-bold text-slate-900 dark:text-white">${totalInvested.toLocaleString()}</div>
                 </div>
-                <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="p-6 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
                     <div className="text-slate-400 text-xs font-bold uppercase">Accrued Yields (Earned)</div>
                     <div className="text-2xl font-sans font-bold text-emerald-500">+${totalEarnedProfit.toLocaleString()}</div>
                 </div>
-                <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="p-6 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 space-y-2">
                     <div className="text-slate-400 text-xs font-bold uppercase">Target Max Returns</div>
                     <div className="text-2xl font-sans font-bold text-[#D9A52E]">+${totalExpectedROI.toLocaleString()}</div>
                 </div>
@@ -179,12 +231,12 @@ export default function MyPropertiesPage() {
             {loading ? (
                 <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-500" /></div>
             ) : investments.length === 0 ? (
-                <div className="text-center py-16 bg-white dark:bg-[#0B1F4B] rounded-3xl">No investments found.</div>
+                <div className="text-center py-16 bg-white dark:bg-[#0B1F4B] rounded-md">No active investments found.</div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 gap-8">
 
                     {/* Recharts Curve from JSONB Filtered Data */}
-                    <div className="lg:col-span-7 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-6">
+                    <div className=" bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-md space-y-6">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white">Filtered JSONB Yield Growth Trend</h3>
                         <div className="h-72 w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -201,21 +253,17 @@ export default function MyPropertiesPage() {
                     </div>
 
                     {/* Holdings */}
-                    <div className="lg:col-span-5 space-y-4">
+                    <div className="space-y-4">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Properties</h3>
                         {investments.map((inv) => (
                             <div
                                 key={inv.id}
                                 onClick={() => setSelectedPropId(inv.id)}
-                                className={`p-5 rounded-3xl border transition cursor-pointer space-y-3 ${inv.id === activeInvestment?.id ? 'bg-amber-500/5 border-amber-500/40 dark:bg-[#071326]' : 'bg-white dark:bg-[#0B1F4B] border-slate-200 dark:border-slate-800'}`}
+                                className={`p-5 rounded-md border transition cursor-pointer space-y-3 ${inv.id === activeInvestment?.id ? 'bg-amber-500/5 border-amber-500/40 dark:bg-[#071326]' : 'bg-white dark:bg-[#0B1F4B] border-slate-200 dark:border-slate-800'}`}
                             >
                                 <div className="flex justify-between">
                                     <h4 className="text-sm font-bold text-slate-900 dark:text-white">{inv.properties?.title}</h4>
                                     <span className="text-xs font-bold text-emerald-500">+${inv.currentProfit.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-                                    <span className="text-slate-400">Principal: ${inv.principal.toLocaleString()}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); setInvestmentToSell(inv); setShowSellModal(true); }} className="px-3 py-1 rounded-xl bg-red-500/10 text-red-500 font-bold text-[10px]">Sell Shares</button>
                                 </div>
                             </div>
                         ))}
