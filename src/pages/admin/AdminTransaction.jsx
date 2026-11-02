@@ -96,7 +96,6 @@ export default function AdminTransactionsPage() {
       const parsedAmount = parseFloat(amount);
       const targetInvestor = investors.find(i => i.id === selectedInvestorId);
 
-      // 1. Insert Transaction record with custom backdated timestamp if specified
       const transactionPayload = {
         user_id: selectedInvestorId,
         type: txType,
@@ -104,7 +103,7 @@ export default function AdminTransactionsPage() {
         status: status,
         reference: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
         reference_id: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`, // Syncs with user ledger column
-        description: `manual ${txType}`, // Provides searchable text for the user
+        description: `Manual ${txType}`, 
         created_at: customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString()
       };
 
@@ -169,7 +168,7 @@ export default function AdminTransactionsPage() {
       
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transaction Management & Funding</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transaction Management/Funding</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Manually log deposits, withdrawals, or investment allocations for investors with backdating support.
         </p>
@@ -181,7 +180,7 @@ export default function AdminTransactionsPage() {
         <div className="lg:col-span-5 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-lg h-fit space-y-5">
           <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-4">
             <PlusCircle className="w-5 h-5 text-amber-500" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Log Manual Transaction</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Manual Transaction</h3>
           </div>
 
           <form onSubmit={handleLogTransaction} className="space-y-4">
@@ -283,7 +282,7 @@ export default function AdminTransactionsPage() {
               disabled={submitting}
               className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#0B1F4B] font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 disabled:opacity-50 mt-2"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Log Transaction & Update Wallet</span>}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Log Transaction</span>}
             </button>
           </form>
         </div>
