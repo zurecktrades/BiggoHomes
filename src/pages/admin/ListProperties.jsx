@@ -31,10 +31,7 @@ export default function ListProperties() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Edit State Management
   const [editingId, setEditingId] = useState(null);
-
-  // Delete Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -50,6 +47,7 @@ export default function ListProperties() {
   const [status, setStatus] = useState('active');
   const [totalTokens, setTotalTokens] = useState('1000');
   const [privateSalesCount, setPrivateSalesCount] = useState('0');
+  const [privateTokensSold, setPrivateTokensSold] = useState('0'); // <--- NEW: Private Tokens Sold State
   const [imageUrl, setImageUrl] = useState('');
 
   useEffect(() => {
@@ -105,6 +103,7 @@ export default function ListProperties() {
     setStatus('active');
     setTotalTokens('1000');
     setPrivateSalesCount('0');
+    setPrivateTokensSold('0');
     setImageUrl('');
     setEditingId(null);
   };
@@ -121,6 +120,7 @@ export default function ListProperties() {
     setStatus(prop.status || 'active');
     setTotalTokens(prop.total_tokens || '1000');
     setPrivateSalesCount(prop.private_sales_investors_count || '0');
+    setPrivateTokensSold(prop.private_tokens_sold || '0');
     setImageUrl(prop.images?.[0] || '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -135,7 +135,12 @@ export default function ListProperties() {
     setLoading(true);
 
     try {
-      const tokens = parseInt(totalTokens);
+      const tokensTotal = parseInt(totalTokens) || 1000;
+      const pTokensSold = parseInt(privateTokensSold) || 0;
+      
+      // Compute publicly available tokens after subtracting private sales
+      const calculatedAvailable = Math.max(0, tokensTotal - pTokensSold);
+
       const propertyData = {
         title,
         location,
@@ -145,8 +150,10 @@ export default function ListProperties() {
         roi_percentage: parseFloat(roiPercentage),
         payout_frequency: payoutFrequency,
         status: status,
-        total_tokens: tokens,
+        total_tokens: tokensTotal,
+        available_tokens: calculatedAvailable, // Sets public remaining tokens cleanly
         private_sales_investors_count: parseInt(privateSalesCount) || 0,
+        private_tokens_sold: pTokensSold,
         images: imageUrl ? [imageUrl] : [],
       };
 
@@ -157,13 +164,12 @@ export default function ListProperties() {
           .eq('id', editingId);
 
         if (error) throw error;
-        showCustomToast("Property Updated", `"${title}" has been successfully updated.`);
+        showCustomToast("Property Updated", `"${title}" updated. Available tokens set to ${calculatedAvailable}.`);
       } else {
-        propertyData.available_tokens = tokens;
         const { error } = await supabase.from('properties').insert(propertyData);
 
         if (error) throw error;
-        showCustomToast("Property Listed", `"${title}" is now active on the marketplace.`);
+        showCustomToast("Property Listed", `"${title}" is active. ${calculatedAvailable} tokens public.`);
       }
 
       resetForm();
@@ -188,7 +194,7 @@ export default function ListProperties() {
 
       if (error) throw error;
 
-      showCustomToast("Property Deleted", `"${propertyToDelete.title}" has been removed from database.`);
+      showCustomToast("Property Deleted", `"${propertyToDelete.title}" deleted.`);
       setDeleteModalOpen(false);
       setPropertyToDelete(null);
       fetchProperties();
@@ -204,7 +210,7 @@ export default function ListProperties() {
     <div className="space-y-10 font-sans p-4 max-w-8xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Create / Edit Form */}
+        {/* Form */}
         <div className="lg:col-span-5 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-xl shadow-lg h-fit space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="flex items-center space-x-2">
@@ -294,7 +300,7 @@ export default function ListProperties() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tokens *</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Total Tokens *</label>
                 <input
                   type="number"
                   value={totalTokens}
@@ -317,15 +323,28 @@ export default function ListProperties() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Private Sales Base Investors Count</label>
-              <input
-                type="number"
-                value={privateSalesCount}
-                onChange={(e) => setPrivateSalesCount(e.target.value)}
-                placeholder="e.g. 40"
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-              />
+            {/* PRIVATE SALES INPUT SECTION */}
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-[#071326] border border-slate-100 dark:border-slate-800">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Private Sales Investors</label>
+                <input
+                  type="number"
+                  value={privateSalesCount}
+                  onChange={(e) => setPrivateSalesCount(e.target.value)}
+                  placeholder="e.g. 40"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Private Tokens Sold</label>
+                <input
+                  type="number"
+                  value={privateTokensSold}
+                  onChange={(e) => setPrivateTokensSold(e.target.value)}
+                  placeholder="e.g. 250"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
             </div>
 
             <div>
@@ -366,7 +385,7 @@ export default function ListProperties() {
           </form>
         </div>
 
-        {/* Inventory Listing */}
+        {/* Existing Property Inventory */}
         <div className="lg:col-span-7 space-y-4">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Active Listings ({properties.length})</h3>
           {properties.map((prop) => (
@@ -381,7 +400,7 @@ export default function ListProperties() {
                     <MapPin className="w-3 h-3 text-amber-500" /> {prop.location}
                   </p>
                   <span className="inline-block px-2 py-0.5 mt-1 rounded-full text-[9px] font-bold uppercase bg-slate-100 dark:bg-white/5 text-slate-400">
-                    Private Base: {prop.private_sales_investors_count || 0} Investors
+                    Public Left: {prop.available_tokens} / {prop.total_tokens}
                   </span>
                 </div>
               </div>

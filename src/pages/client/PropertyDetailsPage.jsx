@@ -68,7 +68,10 @@ export default function PropertyDetailsPage() {
       return;
     }
 
-    if (tokenCount > property.available_tokens) {
+    const available = Number(property.available_tokens || 0);
+    const countToBuy = Number(tokenCount);
+
+    if (countToBuy > available) {
       toast.error('Not enough fractions available for purchase.');
       return;
     }
@@ -81,29 +84,29 @@ export default function PropertyDetailsPage() {
     setSubmitting(true);
 
     try {
-      // 1. Insert into investments matching your EXACT database schema
+      // 1. Insert investment record
       const { error: investError } = await supabase.from('investments').insert({
         user_id: user.id,
         property_id: property.id,
-        amount: totalInvestment, // Mapped to 'amount' column
-        tokens_purchased: tokenCount,
-        payout_frequency: property.payout_frequency || 'quarterly', // Required by schema
-        expected_roi_amount: parseFloat(estimatedReturn), // Required by schema
-        status: 'active', // Activated upon balance deduction
+        amount: totalInvestment,
+        tokens_purchased: countToBuy,
+        payout_frequency: property.payout_frequency || 'quarterly',
+        expected_roi_amount: parseFloat(estimatedReturn),
+        status: 'active',
       });
 
       if (investError) throw investError;
 
-      // 2. Log transaction in ledger
+      // 2. Log in ledger
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'investment',
         amount: totalInvestment,
-        description: `Purchased ${tokenCount} fraction(s) in ${property.title}`,
+        description: `Purchased ${countToBuy} fraction(s) in ${property.title}`,
         reference_id: `INV-${Date.now().toString().slice(-6)}`
       });
 
-      // 3. Deduct user balance
+      // 3. Deduct account balance
       const updatedBalance = userBalance - totalInvestment;
       const { error: profileError } = await supabase
         .from('profiles')
@@ -112,16 +115,16 @@ export default function PropertyDetailsPage() {
 
       if (profileError) throw profileError;
 
-      // 4. Update available tokens & funded amount on property
-      const newAvailable = property.available_tokens - tokenCount;
-      const newFundedAmount = (property.funded_amount || 0) + totalInvestment;
+      // 4. Update available tokens & funded amount (NUMERIC GUARANTEE)
+      const newAvailableTokens = Math.max(0, available - countToBuy);
+      const newFundedAmount = Number(property.funded_amount || 0) + totalInvestment;
 
       const { error: propError } = await supabase
         .from('properties')
         .update({
-          available_tokens: newAvailable,
+          available_tokens: newAvailableTokens,
           funded_amount: newFundedAmount,
-          status: newAvailable === 0 ? 'fully_funded' : property.status,
+          status: newAvailableTokens === 0 ? 'fully_funded' : property.status,
         })
         .eq('id', property.id);
 
