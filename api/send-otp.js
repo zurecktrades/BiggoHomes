@@ -1,9 +1,4 @@
 export default async function handler(req, res) {
-  // Allow CORS for local dev & production origin
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -18,11 +13,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ message: 'Email and code are required' });
   }
 
-  // Reads the key safely on the server side
   const RESEND_API_KEY = process.env.VITE_RESEND_API_KEY || process.env.RESEND_API_KEY;
 
   if (!RESEND_API_KEY) {
-    return res.status(500).json({ message: 'Resend API key missing on server environment.' });
+    return res.status(500).json({ message: 'Resend API key missing on server' });
   }
 
   try {
@@ -52,11 +46,11 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ message: data.message || 'Resend API Error' });
+      return res.status(response.status).json({ message: data.message || 'Resend error' });
     }
 
     return res.status(200).json({ success: true, data });
   } catch (err) {
-    return res.status(500).json({ message: err.message || 'Internal Server Error' });
+    return res.status(500).json({ message: err.message || 'Server error' });
   }
 }
