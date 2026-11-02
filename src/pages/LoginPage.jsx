@@ -44,7 +44,7 @@ const showCustomToast = (title, message, type = 'success') => {
       autoClose: 3500,
       hideProgressBar: true,
       closeButton: false,
-      className: "bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 font-sans",
+      className: "bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md p-4 font-sans",
     }
   );
 };
@@ -93,9 +93,28 @@ export default function AuthPage() {
 
     try {
       if (authMode === 'login') {
-        const { error: signInError } = await signIn(email, password);
+        const { data: authData, error: signInError } = await signIn(email, password);
         if (signInError) throw new Error(signInError.message);
 
+        // Fetch user role from the profiles table to determine redirection
+        const userId = authData?.user?.id;
+        if (userId) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+
+          if (!profileError && profileData) {
+            if (profileData.role === 'admin') {
+              showCustomToast("Welcome Admin!", "Successfully logged into your admin portal.");
+              navigate('/admin');
+              return;
+            }
+          }
+        }
+
+        // Default fallback for investors or if role check is pending
         showCustomToast("Welcome Back!", "Successfully logged into your investor dashboard.");
         navigate('/dashboard');
       } 
@@ -138,11 +157,11 @@ export default function AuthPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="max-w-md w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl text-center relative overflow-hidden"
+              className="max-w-md w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-md p-8 shadow-2xl text-center relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-500 to-[#D9A52E]" />
               
-              <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-[#D9A52E] flex items-center justify-center mb-6">
+              <div className="mx-auto w-16 h-16 rounded-md bg-amber-500/10 dark:bg-amber-500/20 text-[#D9A52E] flex items-center justify-center mb-6">
                 <MailCheck className="w-8 h-8" />
               </div>
 
@@ -151,8 +170,8 @@ export default function AuthPage() {
                 We've sent a secure email verification link to <span className="font-semibold text-[#0B1F4B] dark:text-[#D9A52E]">{registeredEmail}</span>. Please click the link inside to activate your account.
               </p>
 
-              <div className="bg-slate-50 dark:bg-[#10213B] p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 mb-6">
-                💡 Tip: If you don't see the email within a minute, please check your spam or junk folder.
+              <div className="bg-slate-50 dark:bg-[#10213B] p-4 rounded-md border border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 mb-6">
+                Tip: If you don't see the email within a minute, please check your spam or junk folder.
               </div>
 
               <button
@@ -170,7 +189,7 @@ export default function AuthPage() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-5xl w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden grid lg:grid-cols-12">
+      <div className="max-w-5xl w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-md shadow-2xl overflow-hidden grid lg:grid-cols-12">
         
         {/* Left Column: Form & Tabs */}
         <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center">
@@ -210,7 +229,7 @@ export default function AuthPage() {
 
           {/* Animated Tabs Header */}
           {authMode !== 'forgot_password' && (
-            <div className="relative flex bg-slate-100 dark:bg-[#10213B] p-1.5 rounded-2xl mb-8">
+            <div className="relative flex bg-slate-100 dark:bg-[#10213B] p-1.5 rounded-md mb-8">
               <button
                 type="button"
                 onClick={() => { setAuthMode('login'); setError(null); }}
@@ -382,7 +401,7 @@ export default function AuthPage() {
                 transition={{ duration: 0.5, ease: "easeInOut" }}
                 className="space-y-6"
               >
-                <div className="inline-flex p-3 rounded-2xl bg-white/10 border border-white/10 text-[#E5B94F]">
+                <div className="inline-flex p-3 rounded-md bg-white/10 border border-white/10 text-[#E5B94F]">
                   <Icon className="w-7 h-7" />
                 </div>
                 

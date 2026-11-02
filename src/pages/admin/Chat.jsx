@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Send, Search, MessageSquare, Settings, Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Send, Search, MessageSquare, Settings, Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const showCustomToast = (title, message, type = 'success') => {
@@ -54,7 +54,6 @@ export default function AdminMessagesPage() {
       if (invData) {
         setInvestors(invData);
 
-        // Fetch unread messages count where receiver is current admin
         const { data: msgData } = await supabase
           .from('messages')
           .select('sender_id')
@@ -85,9 +84,7 @@ export default function AdminMessagesPage() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new;
-          // If message is sent TO admin FROM an investor
           if (newMsg.receiver_id === user.id) {
-            // If this investor is NOT currently selected, increment unread badge count
             if (!selectedInvestor || selectedInvestor.id !== newMsg.sender_id) {
               setUnreadCounts((prev) => ({
                 ...prev,
@@ -111,7 +108,6 @@ export default function AdminMessagesPage() {
     setManagerNameInput(inv.manager_name || 'BiggoHomes Concierge');
     setIsEditingManager(false);
 
-    // Clear unread badge for this investor
     setUnreadCounts((prev) => ({ ...prev, [inv.id]: 0 }));
 
     await supabase
@@ -180,7 +176,6 @@ export default function AdminMessagesPage() {
     });
   };
 
-  // Save text-only manager details update
   const handleSaveManagerName = async (e) => {
     e.preventDefault();
     if (!selectedInvestor) return;
@@ -253,10 +248,12 @@ export default function AdminMessagesPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-140px)] bg-white dark:bg-[#0B1F4B]/60 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg flex overflow-hidden font-sans">
+    <div className="h-[calc(100vh-140px)] min-h-[500px] bg-white dark:bg-[#0B1F4B]/60 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg flex overflow-hidden font-sans relative">
       
-      {/* Left Sidebar: Investor List */}
-      <div className="w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-[#071326]/40">
+      {/* Left Sidebar: Investor List (Hidden on mobile when an investor is active) */}
+      <div className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50 dark:bg-[#071326]/40 flex-shrink-0 ${
+        selectedInvestor ? 'hidden md:flex' : 'flex'
+      }`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <h3 className="font-bold text-sm mb-3">Investor Concierge</h3>
           <div className="relative">
@@ -272,71 +269,88 @@ export default function AdminMessagesPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50">
-          {filteredInvestors.map((inv) => {
-            const unreadCount = unreadCounts[inv.id] || 0;
-            return (
-              <button
-                key={inv.id}
-                onClick={() => handleSelectInvestor(inv)}
-                className={`w-full p-4 text-left flex items-center justify-between transition ${
-                  selectedInvestor?.id === inv.id 
-                    ? 'bg-amber-500/10 border-l-4 border-amber-500' 
-                    : 'hover:bg-slate-100 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className="flex items-center space-x-3 truncate">
-                  <div className="w-9 h-9 rounded-xl bg-[#0B1F4B] text-amber-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
-                    {inv.full_name ? inv.full_name.slice(0, 2).toUpperCase() : 'IN'}
+          {filteredInvestors.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-400">No investors found</div>
+          ) : (
+            filteredInvestors.map((inv) => {
+              const unreadCount = unreadCounts[inv.id] || 0;
+              return (
+                <button
+                  key={inv.id}
+                  onClick={() => handleSelectInvestor(inv)}
+                  className={`w-full p-4 text-left flex items-center justify-between transition ${
+                    selectedInvestor?.id === inv.id 
+                      ? 'bg-amber-500/10 border-l-4 border-amber-500' 
+                      : 'hover:bg-slate-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 truncate">
+                    <div className="w-9 h-9 rounded-xl bg-[#0B1F4B] text-amber-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                      {inv.full_name ? inv.full_name.slice(0, 2).toUpperCase() : 'IN'}
+                    </div>
+                    <div className="truncate">
+                      <p className={`text-xs truncate ${unreadCount > 0 ? 'font-sans font-bold text-amber-500' : 'font-bold'}`}>
+                        {inv.full_name || 'Anonymous Investor'}
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">{inv.email}</p>
+                    </div>
                   </div>
-                  <div className="truncate">
-                    <p className={`text-xs truncate ${unreadCount > 0 ? 'font-extrabold text-amber-500' : 'font-bold'}`}>
-                      {inv.full_name || 'Anonymous Investor'}
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate">{inv.email}</p>
-                  </div>
-                </div>
 
-                {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-[#0B1F4B] text-[10px] font-extrabold animate-pulse flex-shrink-0">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                  {unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-[#0B1F4B] text-[10px] font-sans font-bold animate-pulse flex-shrink-0">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* Right Pane: Conversation Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-[#0B1F4B]">
+      {/* Right Pane: Conversation Area (Hidden on mobile when no investor is selected) */}
+      <div className={`flex-1 flex flex-col bg-white dark:bg-[#0B1F4B] ${
+        !selectedInvestor ? 'hidden md:flex' : 'flex'
+      }`}>
         {selectedInvestor ? (
           <>
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0B1F4B]">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500 text-[#0B1F4B] font-extrabold flex items-center justify-center text-sm overflow-hidden">
+            {/* Chat Header */}
+            <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0B1F4B] gap-2">
+              <div className="flex items-center space-x-3 truncate">
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setSelectedInvestor(null)}
+                  className="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-200 flex-shrink-0"
+                  aria-label="Back to investor list"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500 text-[#0B1F4B] font-sans font-bold flex items-center justify-center text-xs sm:text-sm overflow-hidden flex-shrink-0">
                   {selectedInvestor.manager_avatar ? (
                     <img src={selectedInvestor.manager_avatar} alt="Manager" className="w-full h-full object-cover" />
                   ) : (
                     selectedInvestor.manager_name ? selectedInvestor.manager_name.slice(0, 2).toUpperCase() : 'AM'
                   )}
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold">{selectedInvestor.full_name}</h4>
-                  <p className="text-[11px] text-amber-500 font-semibold">
-                    Assigned Manager: {selectedInvestor.manager_name || 'BiggoHomes Concierge'}
+                <div className="truncate">
+                  <h4 className="text-xs sm:text-sm font-bold truncate">{selectedInvestor.full_name}</h4>
+                  <p className="text-[10px] sm:text-[11px] text-amber-500 font-semibold truncate">
+                    Manager: {selectedInvestor.manager_name || 'BiggoHomes Concierge'}
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={() => setIsEditingManager(!isEditingManager)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-xs font-bold flex items-center space-x-1.5 transition"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center space-x-1.5 transition flex-shrink-0"
               >
                 <Settings className="w-3.5 h-3.5" />
-                <span>{isEditingManager ? 'Close Config' : 'Configure Manager'}</span>
+                <span className="hidden sm:inline">{isEditingManager ? 'Close Config' : 'Configure Manager'}</span>
               </button>
             </div>
 
+            {/* Manager Configuration Panel */}
             {isEditingManager && (
               <div className="p-4 bg-slate-50 dark:bg-[#071326] border-b border-slate-200 dark:border-slate-800 space-y-3">
                 <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Set Account Manager for {selectedInvestor.full_name}</h5>
@@ -382,13 +396,13 @@ export default function AdminMessagesPage() {
               </div>
             )}
 
-            {/* Messages */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-[#071326]/30">
+            {/* Messages Feed */}
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-[#071326]/30">
               {messages.map((msg) => {
                 const isMe = msg.sender_id === user.id;
                 return (
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[70%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+                    <div className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                       isMe 
                         ? 'bg-[#0B1F4B] dark:bg-[#D9A52E] text-white dark:text-[#0B1F4B] rounded-br-none shadow-md font-semibold' 
                         : 'bg-white dark:bg-[#10213B] border border-slate-200 dark:border-slate-800 rounded-bl-none shadow-sm'
@@ -401,20 +415,20 @@ export default function AdminMessagesPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Reply Input */}
-            <form onSubmit={handleSendReply} className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center space-x-3">
+            {/* Reply Input Form */}
+            <form onSubmit={handleSendReply} className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-center space-x-2 sm:space-x-3 bg-white dark:bg-[#0B1F4B]">
               <input
                 type="text"
                 placeholder={`Reply to ${selectedInvestor.full_name}...`}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-xs focus:outline-none focus:border-amber-500"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-xs focus:outline-none focus:border-amber-500"
               />
               <button
                 type="submit"
-                className="px-5 py-3 rounded-xl bg-amber-500 text-[#0B1F4B] font-bold text-xs flex items-center space-x-2 shadow-md hover:bg-amber-400 transition"
+                className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-amber-500 text-[#0B1F4B] font-bold text-xs flex items-center space-x-1.5 sm:space-x-2 shadow-md hover:bg-amber-400 transition flex-shrink-0"
               >
-                <span>Send Reply</span>
+                <span className="hidden sm:inline">Send Reply</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
             </form>
@@ -423,7 +437,7 @@ export default function AdminMessagesPage() {
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 text-center">
             <MessageSquare className="w-12 h-12 mb-3 text-amber-500 opacity-50" />
             <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Select an Investor</h4>
-            <p className="text-xs max-w-xs mt-1">Choose an investor from the left list to view their messages or configure their account manager.</p>
+            <p className="text-xs max-w-xs mt-1">Choose an investor from the list to view their messages or configure their account manager.</p>
           </div>
         )}
       </div>

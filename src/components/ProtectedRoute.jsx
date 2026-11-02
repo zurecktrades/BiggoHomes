@@ -13,7 +13,7 @@ export default function ProtectedRoute({ requireAdmin = false }) {
     );
   }
 
-  if (!user) {
+  if (!profile) {
     return <Navigate to="/login" replace />;
   }
 

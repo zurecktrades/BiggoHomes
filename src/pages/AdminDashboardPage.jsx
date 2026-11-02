@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { motion } from 'framer-motion';
 import { 
   Users, ShieldCheck, ArrowDownRight, ArrowUpRight, 
-  Building2, DollarSign, Clock, CheckCircle2, XCircle, 
-  Loader2, RefreshCw, AlertCircle, FileText 
+  DollarSign, Clock, CheckCircle2, XCircle, 
+  Loader2, RefreshCw, Building, Coins, Wallet 
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { Link } from 'react-router-dom';
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -16,7 +14,10 @@ export default function AdminDashboardPage() {
     pendingKyc: 0,
     pendingDeposits: 0,
     pendingWithdrawals: 0,
-    totalVolume: 0
+    totalVolume: 0,
+    totalDepositsSum: 0,
+    totalAssetsCount: 0,
+    totalAssetsSpent: 0
   });
 
   const [pendingKycUsers, setPendingKycUsers] = useState([]);
@@ -39,8 +40,11 @@ export default function AdminDashboardPage() {
 
       const totalUsers = profiles?.length || 0;
       const pendingKycList = profiles?.filter(p => p.kyc_status === 'pending') || [];
+      
+      // Sum total deposits recorded on profiles
+      const totalDepositsSum = profiles?.reduce((acc, p) => acc + Number(p.total_deposited || 0), 0) || 0;
 
-      // 2. Fetch Transactions Stats & Pending Deposits/Withdrawals (selecting only full_name from profiles)
+      // 2. Fetch Transactions Stats & Pending Deposits/Withdrawals
       const { data: txs, error: txErr } = await supabase
         .from('transactions')
         .select('*, profiles(full_name)')
@@ -52,12 +56,36 @@ export default function AdminDashboardPage() {
       const totalVolume = txs?.filter(t => t.status === 'completed' || t.status === 'approved')
         .reduce((acc, t) => acc + Math.abs(t.amount), 0) || 0;
 
+      // 3. Fetch Investments Stats (Total Assets Bought & Amount Invested)
+      const { data: invs, error: invErr } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('status', 'active')
+        .gt('amount', 0);
+
+      if (invErr) {
+        console.warn('Investments metric note:', invErr.message);
+      }
+
+      let totalAssetsCount = 0;
+      let totalAssetsSpent = 0;
+
+      if (invs && invs.length > 0) {
+        invs.forEach((inv) => {
+          totalAssetsCount += Number(inv.tokens_purchased || 0);
+          totalAssetsSpent += Number(inv.amount || 0);
+        });
+      }
+
       setStats({
         totalUsers,
         pendingKyc: pendingKycList.length,
         pendingDeposits: pendingTxs.filter(t => t.type === 'deposit').length,
         pendingWithdrawals: pendingTxs.filter(t => t.type === 'withdrawal').length,
-        totalVolume
+        totalVolume,
+        totalDepositsSum,
+        totalAssetsCount,
+        totalAssetsSpent
       });
 
       setPendingKycUsers(pendingKycList);
@@ -97,7 +125,6 @@ export default function AdminDashboardPage() {
     try {
       const newStatus = action === 'approve' ? 'completed' : 'rejected';
 
-      // 1. Update transaction status
       const { error: txUpdateErr } = await supabase
         .from('transactions')
         .update({ status: newStatus })
@@ -105,9 +132,7 @@ export default function AdminDashboardPage() {
 
       if (txUpdateErr) throw txUpdateErr;
 
-      // 2. If approved, modify user's account balance & totals accordingly
       if (action === 'approve') {
-        // Fetch current profile balance
         const { data: profData, error: profFetchErr } = await supabase
           .from('profiles')
           .select('account_balance, total_deposited, total_withdrawn')
@@ -151,21 +176,21 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="space-y-8 font-sans pb-12 max-w-7xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 font-sans pb-16 max-w-7xl mx-auto p-4">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Admin Control Dashboard</h2>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Admin Control Dashboard</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Monitor global platform volume, verify pending KYC investor documents, and approve funding requests.
+            Monitor platform deposits, active property asset deployments, KYC verification, and funding requests.
           </p>
         </div>
 
         <button
           onClick={fetchAdminData}
           disabled={loading}
-          className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#0B1F4B] hover:bg-slate-200 dark:hover:bg-[#102a63] text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-800 transition flex-shrink-0"
+          className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#0B1F4B] hover:bg-slate-200 dark:hover:bg-[#102a63] text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-800 transition flex-shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Data</span>
@@ -173,70 +198,74 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
+        {/* Total Deposits */}
+        <div className="p-5 sm:p-6 rounded-md sm:rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Registered Users</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Deposits</span>
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
+              <Wallet className="w-5 h-5" />
+            </div>
+          </div>
+          <h3 className="text-xl sm:text-2xl font-bold text-emerald-500 mt-4">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `$${stats.totalDepositsSum.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          </h3>
+          <p className="text-[11px] text-slate-400 mt-2">Platform-wide wallet injections</p>
+        </div>
+
+        {/* Total Assets Bought (Count) */}
+        <div className="p-5 sm:p-6 rounded-md sm:rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Assets Bought</span>
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
-              <Users className="w-5 h-5" />
+              <Building className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-4">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats.totalUsers}
+          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-4">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `${stats.totalAssetsCount} Units`}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-2">Active platform investors</p>
+          <p className="text-[11px] text-slate-400 mt-2">Active Units shares sold</p>
         </div>
 
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
+        {/* Total Amount of Assets Bought (Capital Deployed) */}
+        <div className="p-5 sm:p-6 rounded-md sm:rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending KYC Requests</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Asset Capital Deployed</span>
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-              <ShieldCheck className="w-5 h-5" />
+              <Coins className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-amber-500 mt-4">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : stats.pendingKyc}
+          <h3 className="text-xl sm:text-2xl font-bold text-amber-500 mt-4">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `$${stats.totalAssetsSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-2">Requires compliance review</p>
+          <p className="text-[11px] text-slate-400 mt-2">Total investment principal allocated</p>
         </div>
 
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
+        {/* Pending KYC & Funding Requests */}
+        <div className="p-5 sm:p-6 rounded-md sm:rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Funding / Payouts</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Actions</span>
             <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
               <Clock className="w-5 h-5" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-purple-500 mt-4">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (stats.pendingDeposits + stats.pendingWithdrawals)}
+          <h3 className="text-xl sm:text-2xl font-bold text-purple-500 mt-4">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (stats.pendingKyc + stats.pendingDeposits + stats.pendingWithdrawals)}
           </h3>
-          <p className="text-[11px] text-slate-400 mt-2">{stats.pendingDeposits} deposits, {stats.pendingWithdrawals} withdrawals</p>
-        </div>
-
-        <div className="p-6 rounded-3xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Cleared Volume</span>
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-emerald-500 mt-4">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `$${stats.totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
-          </h3>
-          <p className="text-[11px] text-slate-400 mt-2">Platform-wide transaction sum</p>
+          <p className="text-[11px] text-slate-400 mt-2">{stats.pendingKyc} KYC, {stats.pendingDeposits + stats.pendingWithdrawals} TXs pending</p>
         </div>
 
       </div>
 
       {/* SECTION 1: PENDING KYC VERIFICATIONS */}
-      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-md sm:rounded-md shadow-sm overflow-hidden p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending KYC Submissions</h3>
             <p className="text-xs text-slate-500">Review investor passport and selfie documents before granting approval.</p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 font-bold text-xs">
+          <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 font-bold text-xs w-fit">
             {pendingKycUsers.length} Pending
           </span>
         </div>
@@ -246,24 +275,23 @@ export default function AdminDashboardPage() {
         ) : pendingKycUsers.length === 0 ? (
           <div className="text-center py-12 text-slate-400 text-xs">No pending KYC verification requests at this time.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto -mx-5 sm:mx-0 px-5 sm:px-0">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead>
                 <tr className="bg-slate-50 dark:bg-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <th className="py-3 px-4">Investor Name</th>
                   <th className="py-3 px-4">Submitted Date</th>
-                  <th className="py-3 px-4">Documents (Front, Back, Selfie)</th>
+                  <th className="py-3 px-4">Documents</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {pendingKycUsers.map((user) => {
-                  // Parse JSON document URLs if available
                   let docs = { front: '#', back: '#', selfie: '#' };
                   try {
                     if (user.kyc_document_url) docs = JSON.parse(user.kyc_document_url);
                   } catch (e) {
-                    docs.front = user.kyc_document_url; // fallback if single string
+                    docs.front = user.kyc_document_url;
                   }
 
                   return (
@@ -310,13 +338,13 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* SECTION 2: PENDING DEPOSITS & WITHDRAWALS */}
-      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-md sm:rounded-md shadow-sm overflow-hidden p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 gap-2">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending Financial Transactions</h3>
             <p className="text-xs text-slate-500">Approve crypto deposits or payouts to automatically update investor wallet balances.</p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 font-bold text-xs">
+          <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 font-bold text-xs w-fit">
             {pendingTransactions.length} Pending
           </span>
         </div>
@@ -326,8 +354,8 @@ export default function AdminDashboardPage() {
         ) : pendingTransactions.length === 0 ? (
           <div className="text-center py-12 text-slate-400 text-xs">No pending transaction approvals required.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto -mx-5 sm:mx-0 px-5 sm:px-0">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 dark:bg-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200 dark:border-slate-800">
                   <th className="py-3 px-4">Type</th>

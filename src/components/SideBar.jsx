@@ -53,6 +53,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     { name: 'Chat Inbox', path: '/admin/chat', icon: MessagesSquare },
     { name: 'Log Transaction', path: '/admin/transactions', icon: FileText },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
+    { name: 'Wallet Management', path: '/admin/wallet', icon: Wallet },
   ];
 
   // Switch links based on role

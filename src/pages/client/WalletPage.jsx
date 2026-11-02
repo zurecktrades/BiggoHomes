@@ -11,8 +11,9 @@ export default function WalletPage() {
   const { user, profile } = useAuthStore();
   
   // Wallet Addresses & Dynamic State
+  const [walletList, setWalletList] = useState([]);
   const [walletData, setWalletData] = useState({});
-  const [selectedCoin, setSelectedCoin] = useState('USDT_TRC20');
+  const [selectedCoin, setSelectedCoin] = useState('');
   const [loadingWallets, setLoadingWallets] = useState(true);
   
   // Deposit Form State
@@ -29,14 +30,18 @@ export default function WalletPage() {
     setLoadingWallets(true);
     const { data, error } = await supabase
       .from('wallet_addresses')
-      .select('*');
+      .select('*')
+      .order('coin_name', { ascending: true });
 
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
+      setWalletList(data);
       const formattedWallets = {};
       data.forEach((item) => {
         formattedWallets[item.coin_key] = item;
       });
       setWalletData(formattedWallets);
+      // Default to first coin in the database list
+      setSelectedCoin(data[0].coin_key);
     } else {
       console.error('Failed to load wallet addresses:', error);
     }
@@ -76,7 +81,7 @@ export default function WalletPage() {
     try {
       // 1. Generate unique transaction reference ID
       const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
-      const uniqueReference = `BIG-${selectedCoin}-${Date.now()}-${randomSuffix}`;
+      const uniqueReference = `BIG-${selectedCoin.toUpperCase()}-${Date.now()}-${randomSuffix}`;
 
       // 2. Insert pending deposit record into transactions table
       const { error: txErr } = await supabase
@@ -86,7 +91,7 @@ export default function WalletPage() {
           type: 'deposit',
           amount: amount,
           payment_method: selectedCoin,
-          description: `Crypto Deposit via ${currentCoinInfo.coin_name || selectedCoin}`,
+          description: `Crypto Deposit via ${currentCoinInfo.coin_name || selectedCoin} (${currentCoinInfo.network})`,
           status: 'pending',
           reference_id: uniqueReference
         });
@@ -114,7 +119,7 @@ export default function WalletPage() {
         </p>
       </div>
 
-      {/* Balance Summary Cards ($0.00 Default Clean State) */}
+      {/* Balance Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="p-6 rounded-xl bg-gradient-to-br from-[#0B1F4B] to-[#102a63] text-white border border-amber-500/20 shadow-xl relative overflow-hidden">
           <div className="absolute right-0 bottom-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -160,33 +165,39 @@ export default function WalletPage() {
             </div>
             <div>
               <h3 className="text-sm font-bold">Crypto Deposit Desk</h3>
-              <p className="text-xs text-slate-400">Fund account via USDT (TRC20), BTC, or ETH</p>
+              <p className="text-xs text-slate-400">Fund account via admin-configured coin networks</p>
             </div>
           </div>
 
-          {/* Coin Selector Tabs */}
-          <div className="grid grid-cols-3 gap-2">
-            {['USDT_TRC20', 'BTC', 'ETH'].map((key) => {
-              const item = walletData[key];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSelectedCoin(key)}
-                  className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center space-y-0.5 ${
-                    selectedCoin === key
-                      ? 'bg-amber-500 text-[#0B1F4B] border-amber-500 shadow-sm'
-                      : 'bg-slate-50 dark:bg-[#071326] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-amber-500/50'
-                  }`}
-                >
-                  <span>{key === 'USDT_TRC20' ? 'USDT' : key}</span>
-                  <span className="text-[9px] opacity-80 font-normal">
-                    {item ? item.network : 'Network'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Dynamic Coin Selector Grid (Loops through all DB wallets) */}
+          {loadingWallets ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-amber-500" /></div>
+          ) : walletList.length === 0 ? (
+            <div className="text-xs text-amber-500 p-3 bg-amber-500/10 rounded-xl">No deposit coins configured by admin yet.</div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {walletList.map((item) => {
+                const isSelected = selectedCoin === item.coin_key;
+                return (
+                  <button
+                    key={item.coin_key}
+                    type="button"
+                    onClick={() => setSelectedCoin(item.coin_key)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center space-y-0.5 truncate ${
+                      isSelected
+                        ? 'bg-amber-500 text-[#0B1F4B] border-amber-500 shadow-sm'
+                        : 'bg-slate-50 dark:bg-[#071326] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-amber-500/50'
+                    }`}
+                  >
+                    <span className="truncate max-w-full">{item.coin_name}</span>
+                    <span className="text-[9px] opacity-80 font-normal uppercase truncate max-w-full">
+                      {item.network}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Wallet Address Box with Copy */}
           <div className="space-y-1.5">

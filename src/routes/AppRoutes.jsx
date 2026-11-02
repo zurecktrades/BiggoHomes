@@ -32,6 +32,7 @@ import ListProperties from '../pages/admin/ListProperties';
 import Investors from '../pages/admin/Investors';
 import AdminTransactionsPage from '../pages/admin/AdminTransaction';
 import ScrollToTop from '../components/ScrollToTop';
+import AdminWalletSettingsPage from '../pages/admin/AdminWalletSettingsPage';
 
 export default function AppRoutes() {
   const { initAuth, theme } = useAuthStore();
@@ -83,6 +84,7 @@ export default function AppRoutes() {
             <Route path="/admin/listing" element={<ListProperties />} />
             <Route path="/admin/investors" element={<Investors />} />
             <Route path="/admin/transactions" element={<AdminTransactionsPage />} />
+            <Route path="/admin/wallet" element={<AdminWalletSettingsPage />} />
           </Route>
         </Route>
       </Routes>
