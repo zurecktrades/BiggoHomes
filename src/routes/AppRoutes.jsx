@@ -12,7 +12,8 @@ import AdminLayout from '../components/layouts/AdminLayout';
 // Public Pages
 import LandingPage from '../pages/LandingPages';
 import LoginPage from '../pages/LoginPage';
-import PropertiesPage from '../pages/PropertiesPage';
+import AboutUsPage from '../pages/About';
+import CalculatorPage from '../pages/RoiCalculator';
 
 // Client Pages
 import InvestorDashboard from '../pages/DashboardPage';
@@ -56,10 +57,11 @@ export default function AppRoutes() {
       <Routes>
         {/* --- PUBLIC ROUTES (With Navbar & Footer) --- */}
         <Route path="/" element={<><Navbar /><main className="flex-1"><LandingPage /></main><Footer /></>} />
-        <Route path="/properties" element={<><Navbar /><main className="flex-1"><PropertiesPage /></main><Footer /></>} />
+        <Route path="/about" element={<><Navbar /><main className="flex-1"><AboutUsPage /></main><Footer /></>} />
         <Route path="/auth" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
         <Route path="/login" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
         <Route path="/register" element={<><Navbar /><main className="flex-1"><LoginPage /></main><Footer /></>} />
+        <Route path="/calculator" element={<><Navbar /><main className="flex-1"><CalculatorPage /></main><Footer /></>} />
 
         {/* --- INVESTOR / CLIENT PORTAL (Protected + ClientLayout with Sidebar) --- */}
         <Route element={<ProtectedRoute />}>

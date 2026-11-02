@@ -46,8 +46,7 @@ export default function Navbar() {
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex space-x-8 text-sm font-semibold text-slate-700 dark:text-slate-300">
-          <Link to="/properties" className="hover:text-amber-500 transition">Properties</Link>
-          <Link to="/invest" className="hover:text-amber-500 transition">Invest</Link>
+          <Link to="/" className="hover:text-amber-500 transition">Home</Link>
           <Link to="/calculator" className="hover:text-amber-500 transition">ROI Calculator</Link>
           <Link to="/about" className="hover:text-amber-500 transition">About Us</Link>
         </nav>

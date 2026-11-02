@@ -237,11 +237,11 @@ export default function LandingPage() {
       <section className="relative isolate overflow-hidden bg-slate-50 dark:bg-[#0B1F4B] px-4 py-12 lg:py-20 text-[#0B1F4B] dark:text-white transition-colors duration-300">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-28 h-96 w-96 rounded-full bg-[#D9A55E]/15 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-28 h-96 w-96 rounded-full md:bg-[#D9A55E]/15 blur-3xl"
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl"
+          className="pointer-events-none absolute -bottom-40 -left-20 h-96 w-96 rounded-full md:bg-blue-400/10 blur-3xl"
         />
 
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-12">
