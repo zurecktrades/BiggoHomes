@@ -103,7 +103,7 @@ export default function AdminTransactionsPage() {
         status: status,
         reference: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
         reference_id: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`, // Syncs with user ledger column
-        description: `Manual ${txType}`, 
+        description: `Escrow Manual ${txType}`, 
         created_at: customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString()
       };
 

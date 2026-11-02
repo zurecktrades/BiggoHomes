@@ -49,6 +49,7 @@ export default function ListProperties() {
   const [payoutFrequency, setPayoutFrequency] = useState('quarterly');
   const [status, setStatus] = useState('active');
   const [totalTokens, setTotalTokens] = useState('1000');
+  const [privateSalesCount, setPrivateSalesCount] = useState('0');
   const [imageUrl, setImageUrl] = useState('');
 
   useEffect(() => {
@@ -64,7 +65,6 @@ export default function ListProperties() {
     if (data) setProperties(data);
   };
 
-  // Upload Property Image
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -94,7 +94,6 @@ export default function ListProperties() {
     }
   };
 
-  // Reset Form
   const resetForm = () => {
     setTitle('');
     setLocation('');
@@ -105,11 +104,11 @@ export default function ListProperties() {
     setPayoutFrequency('quarterly');
     setStatus('active');
     setTotalTokens('1000');
+    setPrivateSalesCount('0');
     setImageUrl('');
     setEditingId(null);
   };
 
-  // Populate Form for Editing
   const handleStartEdit = (prop) => {
     setEditingId(prop.id);
     setTitle(prop.title || '');
@@ -121,13 +120,11 @@ export default function ListProperties() {
     setPayoutFrequency(prop.payout_frequency || 'quarterly');
     setStatus(prop.status || 'active');
     setTotalTokens(prop.total_tokens || '1000');
+    setPrivateSalesCount(prop.private_sales_investors_count || '0');
     setImageUrl(prop.images?.[0] || '');
-    
-    // Scroll smoothly to form on mobile/tablet
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Create or Update Property Submission
   const handleSubmitProperty = async (e) => {
     e.preventDefault();
     if (!title || !location || !targetAmount || !minInvestment || !roiPercentage || !totalTokens) {
@@ -149,11 +146,11 @@ export default function ListProperties() {
         payout_frequency: payoutFrequency,
         status: status,
         total_tokens: tokens,
+        private_sales_investors_count: parseInt(privateSalesCount) || 0,
         images: imageUrl ? [imageUrl] : [],
       };
 
       if (editingId) {
-        // UPDATE existing property
         const { error } = await supabase
           .from('properties')
           .update(propertyData)
@@ -162,8 +159,7 @@ export default function ListProperties() {
         if (error) throw error;
         showCustomToast("Property Updated", `"${title}" has been successfully updated.`);
       } else {
-        // CREATE new property
-        propertyData.available_tokens = tokens; // Set initial available tokens on create
+        propertyData.available_tokens = tokens;
         const { error } = await supabase.from('properties').insert(propertyData);
 
         if (error) throw error;
@@ -180,7 +176,6 @@ export default function ListProperties() {
     }
   };
 
-  // Confirm Delete Handler
   const confirmDelete = async () => {
     if (!propertyToDelete) return;
     setDeleteLoading(true);
@@ -209,7 +204,7 @@ export default function ListProperties() {
     <div className="space-y-10 font-sans p-4 max-w-8xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Create / Edit Property Form */}
+        {/* Create / Edit Form */}
         <div className="lg:col-span-5 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-xl shadow-lg h-fit space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="flex items-center space-x-2">
@@ -219,10 +214,7 @@ export default function ListProperties() {
               </h3>
             </div>
             {editingId && (
-              <button 
-                onClick={resetForm}
-                className="text-[10px] uppercase font-bold text-slate-400 hover:text-red-500 transition"
-              >
+              <button onClick={resetForm} className="text-[10px] uppercase font-bold text-slate-400 hover:text-red-500 transition">
                 Cancel Edit
               </button>
             )}
@@ -235,7 +227,7 @@ export default function ListProperties() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Marina Bay Luxury Penthouse"
+                placeholder="e.g. KiloHome Luxury Villa"
                 className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -247,7 +239,7 @@ export default function ListProperties() {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Lagos, Nigeria"
+                  placeholder="e.g. Umuahia, Nigeria"
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -297,7 +289,7 @@ export default function ListProperties() {
                   step="0.1"
                   value={roiPercentage}
                   onChange={(e) => setRoiPercentage(e.target.value)}
-                  placeholder="15.5"
+                  placeholder="30"
                   className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -326,6 +318,17 @@ export default function ListProperties() {
             </div>
 
             <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Private Sales Base Investors Count</label>
+              <input
+                type="number"
+                value={privateSalesCount}
+                onChange={(e) => setPrivateSalesCount(e.target.value)}
+                placeholder="e.g. 40"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Description</label>
               <textarea
                 value={description}
@@ -344,9 +347,7 @@ export default function ListProperties() {
                 ) : (
                   <>
                     <Upload className="w-4 h-4 text-amber-500" />
-                    <span className="text-xs text-slate-400">
-                      {imageUrl ? 'Photo Uploaded / Selected' : 'Upload Property Photo'}
-                    </span>
+                    <span className="text-xs text-slate-400">{imageUrl ? 'Photo Uploaded / Selected' : 'Upload Property Photo'}</span>
                   </>
                 )}
                 <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} className="hidden" />
@@ -365,111 +366,38 @@ export default function ListProperties() {
           </form>
         </div>
 
-        {/* Existing Property Inventory */}
+        {/* Inventory Listing */}
         <div className="lg:col-span-7 space-y-4">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Active Listings ({properties.length})</h3>
-
-          {properties.length === 0 ? (
-            <div className="text-center py-12 bg-white dark:bg-[#0B1F4B] rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-              No properties listed yet. Fill out the form to publish your first deal.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {properties.map((prop) => (
-                <div
-                  key={prop.id}
-                  className="p-4 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
-                >
-                  <div className="flex items-center space-x-3 truncate">
-                    <div className="w-14 h-14 rounded-xl bg-slate-800 overflow-hidden flex-shrink-0">
-                      <img src={prop.images?.[0] || 'https://via.placeholder.com/150'} alt={prop.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="truncate">
-                      <h4 className="text-xs font-bold truncate text-slate-900 dark:text-white">{prop.title}</h4>
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-amber-500" />
-                        {prop.location}
-                      </p>
-                      <span className="inline-block px-2 py-0.5 mt-1 rounded-full text-[9px] font-bold uppercase bg-slate-100 dark:bg-white/5 text-slate-400">
-                        {prop.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between sm:justify-end space-x-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800">
-                    <div className="text-left sm:text-right flex-shrink-0 text-xs">
-                      <p className="font-sans font-bold text-amber-500">${prop.target_amount?.toLocaleString()} Target</p>
-                      <p className="text-[10px] text-slate-400">{prop.roi_percentage}% ROI • {prop.available_tokens} left</p>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => handleStartEdit(prop)}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-blue-500/10 hover:text-blue-500 text-slate-500 transition"
-                        title="Edit Property"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPropertyToDelete(prop);
-                          setDeleteModalOpen(true);
-                        }}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-red-500/10 hover:text-red-500 text-slate-500 transition"
-                        title="Delete Property"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+          {properties.map((prop) => (
+            <div key={prop.id} className="p-4 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center space-x-3 truncate">
+                <div className="w-14 h-14 rounded-xl bg-slate-800 overflow-hidden flex-shrink-0">
+                  <img src={prop.images?.[0] || 'https://via.placeholder.com/150'} alt={prop.title} className="w-full h-full object-cover" />
                 </div>
-              ))}
+                <div className="truncate">
+                  <h4 className="text-xs font-bold truncate text-slate-900 dark:text-white">{prop.title}</h4>
+                  <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 text-amber-500" /> {prop.location}
+                  </p>
+                  <span className="inline-block px-2 py-0.5 mt-1 rounded-full text-[9px] font-bold uppercase bg-slate-100 dark:bg-white/5 text-slate-400">
+                    Private Base: {prop.private_sales_investors_count || 0} Investors
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button onClick={() => handleStartEdit(prop)} className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:text-blue-500 text-slate-500 transition">
+                  <Edit3 className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setPropertyToDelete(prop); setDeleteModalOpen(true); }} className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:text-red-500 text-slate-500 transition">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
       </div>
-
-      {/* DELETE CONFIRMATION MODAL */}
-      {deleteModalOpen && propertyToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center space-x-3 text-red-500">
-              <div className="p-3 rounded-2xl bg-red-500/10">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Property Deal?</h3>
-                <p className="text-xs text-slate-400 truncate max-w-[240px]">{propertyToDelete.title}</p>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-300 leading-relaxed">
-              This action is <strong>irreversible</strong>. Removing this property will permanently clear its listing record from the marketplace database.
-            </p>
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
-                onClick={() => {
-                  setDeleteModalOpen(false);
-                  setPropertyToDelete(null);
-                }}
-                disabled={deleteLoading}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-bold transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleteLoading}
-                className="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-400 text-white text-xs font-bold transition flex items-center space-x-2"
-              >
-                {deleteLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Permanently Delete</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
