@@ -75,11 +75,7 @@ export default function RoiCalculatorPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold uppercase tracking-wider mb-2">
-            <Calculator className="w-3.5 h-3.5" />
-            <span>Yield Estimator</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">Real Estate ROI Calculator</h1>
+          <h1 className="text-2xl sm:text-4xl font-sans font-bold tracking-tight">Real Estate ROI Calculator</h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Simulate fractional property returns, payout frequencies, and capital growth in real-time.
           </p>
@@ -97,7 +93,7 @@ export default function RoiCalculatorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Inputs Controls Panel */}
-        <div className="lg:col-span-5 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="lg:col-span-5 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-md p-6 sm:p-8 shadow-xl space-y-6">
           <h3 className="text-base font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center justify-between">
             <span>Investment Parameters</span>
             <Building2 className="w-4 h-4 text-amber-500" />
@@ -212,7 +208,7 @@ export default function RoiCalculatorPage() {
           {/* Output Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
-            <div className="p-5 rounded-2xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="p-5 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Invested</span>
               <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
                 ${calculations.totalInvested.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -220,7 +216,7 @@ export default function RoiCalculatorPage() {
               <p className="text-[10px] text-slate-400">{unitsCount} unit(s) @ ${unitPrice}/unit</p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="p-5 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Estimated Total Profit</span>
               <h3 className="text-xl sm:text-2xl font-bold text-emerald-500">
                 +${calculations.totalExpectedProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -230,7 +226,7 @@ export default function RoiCalculatorPage() {
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+            <div className="p-5 rounded-md bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Per Payout Yield</span>
               <h3 className="text-xl sm:text-2xl font-bold text-amber-500">
                 ${calculations.payoutPerPeriod.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -241,11 +237,11 @@ export default function RoiCalculatorPage() {
           </div>
 
           {/* Maturity Highlights Card */}
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0B1F4B] via-[#102a63] to-[#0B1F4B] text-white border border-amber-500/20 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+          <div className="p-6 rounded-md bg-gradient-to-r from-[#0B1F4B] via-[#102a63] to-[#0B1F4B] text-white border border-amber-500/20 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
             <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
             <div>
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Total Portfolio Value at Maturity</span>
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-amber-400 mt-1">
+              <h2 className="text-3xl sm:text-4xl font-sans font-bold text-amber-400 mt-1">
                 ${calculations.totalMaturityValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </h2>
             </div>
@@ -256,7 +252,7 @@ export default function RoiCalculatorPage() {
           </div>
 
           {/* Recharts Yield Curve Graph */}
-          <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-md space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">Projected Yield Growth Trajectory</h3>
