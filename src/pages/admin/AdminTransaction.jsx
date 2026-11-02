@@ -104,7 +104,7 @@ export default function AdminTransactionsPage() {
         status: status,
         reference: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
         reference_id: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`, // Syncs with user ledger column
-        description: `Admin manual ${txType} adjustment`, // Provides searchable text for the user
+        description: `manual ${txType}`, // Provides searchable text for the user
         created_at: customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString()
       };
 
