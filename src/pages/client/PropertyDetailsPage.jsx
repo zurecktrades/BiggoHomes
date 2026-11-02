@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { ArrowLeft, MapPin, Calculator, Loader2, CheckCircle2, Plus, Minus, Wallet, Users } from 'lucide-react';
+import { ArrowLeft, MapPin, Calculator, Loader2, Plus, Minus, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function PropertyDetailsPage() {
@@ -31,7 +31,6 @@ export default function PropertyDetailsPage() {
     if (!error && data) {
       setProperty(data);
 
-      // Calculate total unique online investors + private sales baseline
       const { data: investData } = await supabase
         .from('investments')
         .select('user_id')
@@ -62,6 +61,35 @@ export default function PropertyDetailsPage() {
   const estimatedReturn = (totalInvestment * (property.roi_percentage / 100)).toFixed(2);
   const userBalance = profile?.account_balance || 0;
 
+  // Generates complete daily profit schedule to store as JSONB
+  const generateProfitSchedule = (principal, totalMaxProfit, durationDays) => {
+    const schedule = [];
+    const dailyBase = totalMaxProfit / durationDays;
+    let cumulativeProfit = 0;
+    const purchaseDate = new Date(); // Purchase timestamp baseline
+
+    for (let day = 1; day <= durationDays; day++) {
+      const variance = day === durationDays ? 1 : 0.85 + Math.random() * 0.3;
+      const dailyProfit = day === durationDays 
+        ? Number((totalMaxProfit - cumulativeProfit).toFixed(2)) 
+        : Number((dailyBase * variance).toFixed(2));
+      
+      cumulativeProfit = Number((cumulativeProfit + dailyProfit).toFixed(2));
+
+      // Add 'day - 1' to start Day 1 on the actual purchase date
+      const scheduleDate = new Date(purchaseDate);
+      scheduleDate.setDate(purchaseDate.getDate() + (day - 1));
+
+      schedule.push({
+        day: day,
+        date: scheduleDate.toISOString().split('T')[0],
+        profitEarned: cumulativeProfit,
+        portfolioValue: Number((principal + cumulativeProfit).toFixed(2))
+      });
+    }
+    return schedule;
+  };
+
   const handleConfirmInvestment = async () => {
     if (!user) {
       toast.error('Please log in to complete an investment.');
@@ -72,7 +100,7 @@ export default function PropertyDetailsPage() {
     const countToBuy = Number(tokenCount);
 
     if (countToBuy > available) {
-      toast.error('Not enough fractions available for purchase.');
+      toast.error('Not enough units available for purchase.');
       return;
     }
 
@@ -84,7 +112,10 @@ export default function PropertyDetailsPage() {
     setSubmitting(true);
 
     try {
-      // 1. Insert investment record
+      const durationDays = property.payout_frequency === 'annual' ? 365 : property.payout_frequency === 'bi-annual' ? 180 : 90;
+      const profitScheduleJson = generateProfitSchedule(totalInvestment, parseFloat(estimatedReturn), durationDays);
+
+      // 1. Insert investment with JSONB schedule
       const { error: investError } = await supabase.from('investments').insert({
         user_id: user.id,
         property_id: property.id,
@@ -93,6 +124,7 @@ export default function PropertyDetailsPage() {
         payout_frequency: property.payout_frequency || 'quarterly',
         expected_roi_amount: parseFloat(estimatedReturn),
         status: 'active',
+        profit_schedule: profitScheduleJson
       });
 
       if (investError) throw investError;
@@ -102,11 +134,11 @@ export default function PropertyDetailsPage() {
         user_id: user.id,
         type: 'investment',
         amount: totalInvestment,
-        description: `Purchased ${countToBuy} fraction(s) in ${property.title}`,
+        description: `Purchased ${countToBuy} unit(s) in ${property.title}`,
         reference_id: `INV-${Date.now().toString().slice(-6)}`
       });
 
-      // 3. Deduct account balance
+      // 3. Deduct balance
       const updatedBalance = userBalance - totalInvestment;
       const { error: profileError } = await supabase
         .from('profiles')
@@ -115,7 +147,7 @@ export default function PropertyDetailsPage() {
 
       if (profileError) throw profileError;
 
-      // 4. Update available tokens & funded amount (NUMERIC GUARANTEE)
+      // 4. Update available tokens
       const newAvailableTokens = Math.max(0, available - countToBuy);
       const newFundedAmount = Number(property.funded_amount || 0) + totalInvestment;
 
@@ -130,11 +162,11 @@ export default function PropertyDetailsPage() {
 
       if (propError) throw propError;
 
-      toast.success("Investment confirmed successfully!");
+      toast.success("Payment confirmed successfully!");
       if (fetchProfile) fetchProfile();
       fetchPropertyDetails();
     } catch (err) {
-      console.error('Investment error:', err.message);
+      console.error(err);
       toast.error(err.message || 'Failed to complete transaction.');
     } finally {
       setSubmitting(false);

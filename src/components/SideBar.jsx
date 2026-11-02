@@ -18,7 +18,9 @@ import {
   MessagesSquare,
   Briefcase,
   BanknoteCheck,
-  ArrowUpRight
+  ArrowUpRight,
+  BuildingComplex,
+  Store
 } from 'lucide-react';
 import logo from '../../public/logo_transparent.png';
 import logoDark from '../../public/logoDark.png';
@@ -34,8 +36,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
   // Navigation items for Standard Investors
   const investorLinks = [
     { name: 'My Portfolio', path: '/dashboard', icon: PieChart },
-    { name: 'Explore Properties', path: '/properties-listing', icon: Building },
+    { name: 'Explore Properties', path: '/properties-listing', icon: Store },
     { name: 'Wallet Funding', path: '/wallet', icon: Wallet },
+    { name: 'My Properties', path: '/my-properties', icon: BuildingComplex },
     { name: 'Withdraw Funds', path: '/withdraw', icon: ArrowUpRight },
     { name: 'Contact Manager', path: '/chat-manager', icon: Briefcase },
     { name: 'Transactions', path: '/transactions', icon: Wallet },

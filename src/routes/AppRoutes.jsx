@@ -23,6 +23,7 @@ import AccountManagerPage from '../pages/client/ChatManager';
 import TransactionsPage from '../pages/client/TransactionHistory';
 import InvestorSettings from '../pages/client/Settings';
 import WithdrawPage from '../pages/client/Withdraw';
+import Myproperties from '../pages/client/MyProperties';
 
 // Admin Pages
 import AdminDashboardPage from '../pages/AdminDashboardPage';
@@ -66,6 +67,7 @@ export default function AppRoutes() {
             <Route path="/properties-listing" element={<Properties />} />
             <Route path="/properties/:id" element={<PropertyDetailsPage />} />
             <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/my-properties" element={<Myproperties />} />
             <Route path="/withdraw" element={<WithdrawPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/chat-manager" element={<AccountManagerPage />} />
