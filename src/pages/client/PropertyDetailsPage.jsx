@@ -81,16 +81,20 @@ export default function PropertyDetailsPage() {
     setSubmitting(true);
 
     try {
-      // 1. Insert into investments
+      // 1. Insert into investments matching your EXACT database schema
       const { error: investError } = await supabase.from('investments').insert({
         user_id: user.id,
         property_id: property.id,
+        amount: totalInvestment, // Mapped to 'amount' column
         tokens_purchased: tokenCount,
-        total_amount: totalInvestment,
+        payout_frequency: property.payout_frequency || 'quarterly', // Required by schema
+        expected_roi_amount: parseFloat(estimatedReturn), // Required by schema
+        status: 'active', // Activated upon balance deduction
       });
+
       if (investError) throw investError;
 
-      // 2. Log in transactions ledger
+      // 2. Log transaction in ledger
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'investment',
@@ -99,15 +103,16 @@ export default function PropertyDetailsPage() {
         reference_id: `INV-${Date.now().toString().slice(-6)}`
       });
 
-      // 3. Deduct wallet balance
+      // 3. Deduct user balance
       const updatedBalance = userBalance - totalInvestment;
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ account_balance: updatedBalance })
         .eq('id', user.id);
+
       if (profileError) throw profileError;
 
-      // 4. Update available tokens & funded amount
+      // 4. Update available tokens & funded amount on property
       const newAvailable = property.available_tokens - tokenCount;
       const newFundedAmount = (property.funded_amount || 0) + totalInvestment;
 
@@ -119,14 +124,15 @@ export default function PropertyDetailsPage() {
           status: newAvailable === 0 ? 'fully_funded' : property.status,
         })
         .eq('id', property.id);
+
       if (propError) throw propError;
 
       toast.success("Investment confirmed successfully!");
       if (fetchProfile) fetchProfile();
       fetchPropertyDetails();
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to complete transaction.');
+      console.error('Investment error:', err.message);
+      toast.error(err.message || 'Failed to complete transaction.');
     } finally {
       setSubmitting(false);
     }
@@ -158,8 +164,8 @@ export default function PropertyDetailsPage() {
         <div className="lg:col-span-5 p-8 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             <div className="flex justify-between text-xs font-bold text-amber-500">
-              <span>Fraction Price: ${tokenPrice.toFixed(2)}</span>
-              <span>Available: {property.available_tokens} tokens</span>
+              <span>Unit Price: ${tokenPrice.toFixed(2)}</span>
+              <span>Available: {property.available_tokens} units</span>
             </div>
             <div className="flex items-center justify-between bg-slate-50 dark:bg-[#071326] p-3 rounded-2xl">
               <button onClick={() => setTokenCount(Math.max(1, tokenCount - 1))} className="p-2 bg-slate-200 dark:bg-white/10 rounded-xl"><Minus className="w-4 h-4" /></button>

@@ -66,7 +66,7 @@ export default function PropertiesPage() {
         <div>
           <h2 className="text-2xl font-sans font-bold tracking-tight">Investment Marketplace</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Explore institutional real estate assets open for fractional investment.
+            Explore institutional real estate markets.
           </p>
         </div>
 
