@@ -1,35 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { Search, Building2, MapPin, Eye } from 'lucide-react';
+import { Search, Building2, MapPin, Eye, Users } from 'lucide-react';
 
 export default function PropertiesPage() {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState([]);
+  const [properties, setProperties] = useState({}); // Stores investor counts mapped by property ID
+  const [propertyList, setPropertyList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProperties();
+    fetchPropertiesWithInvestors();
   }, []);
 
-  const fetchProperties = async () => {
+  const fetchPropertiesWithInvestors = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // 1. Fetch properties
+    const { data: propData, error: propError } = await supabase
       .from('properties')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setProperties(data);
+    if (propError || !propData) {
+      setLoading(false);
+      return;
     }
+
+    // 2. Fetch all platform investments to calculate unique investors per property
+    const { data: investData } = await supabase
+      .from('investments')
+      .select('property_id, user_id');
+
+    // Group unique online investors per property ID
+    const investorCountsMap = {};
+    propData.forEach((prop) => {
+      const propertyInvestments = investData?.filter((inv) => inv.property_id === prop.id) || [];
+      const uniqueOnlineInvestors = new Set(propertyInvestments.map((i) => i.user_id)).size;
+      
+      // Total Investors = Admin Private Sales baseline + Unique platform buyers
+      investorCountsMap[prop.id] = (prop.private_sales_investors_count || 0) + uniqueOnlineInvestors;
+    });
+
+    setProperties(investorCountsMap);
+    setPropertyList(propData);
     setLoading(false);
   };
 
   const statuses = ['All', 'active', 'upcoming', 'fully_funded'];
 
-  const filteredProperties = properties.filter((p) => {
+  const filteredProperties = propertyList.filter((p) => {
     const matchesSearch = p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           p.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === 'All' || p.status === selectedStatus;
@@ -96,9 +118,7 @@ export default function PropertiesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProperties.map((property) => {
             const tokenPrice = property.total_tokens > 0 ? property.target_amount / property.total_tokens : 0;
-            const fundedPct = property.target_amount > 0 && property.funded_amount !== undefined
-              ? Math.round((property.funded_amount / property.target_amount) * 100)
-              : Math.round(((property.total_tokens - property.available_tokens) / property.total_tokens) * 100);
+            const investorCount = properties[property.id] || property.private_sales_investors_count || 0;
 
             return (
               <div
@@ -112,8 +132,16 @@ export default function PropertiesPage() {
                     alt={property.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
+                  
+                  {/* ROI Badge */}
                   <div className="absolute top-3 right-3 px-3 py-1 rounded-full text-[10px] font-sans font-bold uppercase bg-slate-900/80 text-amber-400 backdrop-blur-md">
                     {property.roi_percentage}% ROI
+                  </div>
+
+                  {/* Investors Badge */}
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-sans font-bold uppercase bg-slate-900/80 text-white backdrop-blur-md flex items-center gap-1.5">
+                    <Users className="w-3 h-3 text-amber-400" />
+                    <span>{investorCount} Investors</span>
                   </div>
                 </div>
 
