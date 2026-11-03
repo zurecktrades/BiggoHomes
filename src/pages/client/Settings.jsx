@@ -127,7 +127,7 @@ export default function SettingsPage() {
 
       if (updateError) throw updateError;
 
-      toast.success('KYC documents submitted successfully! Awaiting admin verification.');
+      toast.success('KYC documents submitted successfully!');
       if (fetchProfile) fetchProfile();
     } catch (err) {
       console.error(err);
@@ -428,7 +428,7 @@ export default function SettingsPage() {
                   className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#0B1F4B] font-sans font-bold text-xs shadow-md transition flex items-center space-x-2 disabled:opacity-50"
                 >
                   {uploadingKyc ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                  <span>Submit KYC Package</span>
+                  <span>Submit KYC</span>
                 </button>
               </div>
             </form>

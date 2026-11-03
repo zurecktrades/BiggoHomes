@@ -177,9 +177,6 @@ export default function MyPropertiesPage() {
         <div className="space-y-8 font-sans pb-16 max-w-8xl p-4 mx-auto">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">My Property Portfolio</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Yield trends derived from verified JSONB database profit schedules.
-                </p>
             </div>
 
             {/* SELL MODAL */}
@@ -237,7 +234,6 @@ export default function MyPropertiesPage() {
 
                     {/* Recharts Curve from JSONB Filtered Data */}
                     <div className=" bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 p-6 rounded-md space-y-6">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Filtered JSONB Yield Growth Trend</h3>
                         <div className="h-72 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
