@@ -120,14 +120,14 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button 
               onClick={() => useNavigateInstance('/wallet')}
-              className="inline-flex items-center space-x-2 bg-amber-500 hover:bg-amber-400 text-[#0B1F4B] font-sans font-bold px-5 py-3 rounded-2xl text-xs shadow-lg transition"
+              className="inline-flex items-center space-x-2 bg-amber-500 hover:bg-amber-400 text-[#0B1F4B] font-sans font-bold px-5 py-3 rounded-md text-xs shadow-lg transition"
             >
               <ArrowDownRight className="w-4 h-4" />
               <span>Deposit Funds</span>
             </button>
             <Link 
-              to="/properties" 
-              className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-2xl text-xs backdrop-blur-md transition border border-white/10"
+              to="/properties-listing" 
+              className="inline-flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-md text-xs backdrop-blur-md transition border border-white/10"
             >
               <Building2 className="w-4 h-4 text-amber-400" />
               <span>Explore Deals</span>
