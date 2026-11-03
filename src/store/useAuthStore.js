@@ -5,6 +5,7 @@ export const useAuthStore = create((set, get) => ({
   user: null,
   profile: null,
   loading: true,
+  isPasswordRecovery: false, // Tracks if user landed via a reset password email link
   theme: localStorage.getItem('theme') || 'light',
 
   toggleTheme: () => {
@@ -28,7 +29,14 @@ export const useAuthStore = create((set, get) => ({
         }
       }
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Listen for authentication changes including PASSWORD_RECOVERY
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          // Flags that the user is actively resetting their password
+          set({ isPasswordRecovery: true, user: session?.user ?? null });
+          return;
+        }
+
         const currentUser = session?.user ?? null;
         if (currentUser) {
           const isBanned = await get().fetchProfile(currentUser.id);
@@ -61,7 +69,6 @@ export const useAuthStore = create((set, get) => ({
         console.error('Error fetching profile:', error);
         return false;
       } else {
-        // Check if account is banned
         if (data?.status === 'banned') {
           return true; // Flag as banned
         }
@@ -79,7 +86,6 @@ export const useAuthStore = create((set, get) => ({
     if (error) return { error };
     
     if (data?.user) {
-      // Check if user is banned immediately upon sign in
       const isBanned = await get().fetchProfile(data.user.id);
       if (isBanned) {
         await supabase.auth.signOut();
@@ -102,9 +108,7 @@ export const useAuthStore = create((set, get) => ({
     });
     if (error) return { error };
     
-    // If sign up creates a session immediately (email confirmation disabled in Supabase)
     if (data?.user) {
-      // Insert profile record manually if trigger isn't set up
       await supabase.from('profiles').upsert({
         id: data.user.id,
         full_name: metadata.full_name || '',
@@ -125,8 +129,20 @@ export const useAuthStore = create((set, get) => ({
     return { data };
   },
 
+  // NEW: Update password method for resetting passwords
+  updatePassword: async (newPassword) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) return { error };
+    
+    // Clear password recovery mode once successfully updated
+    set({ isPasswordRecovery: false });
+    return { data };
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ user: null, profile: null });
+    set({ user: null, profile: null, isPasswordRecovery: false });
   },
 }));

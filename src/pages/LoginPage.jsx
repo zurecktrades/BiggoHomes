@@ -55,6 +55,7 @@ export default function AuthPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [fullName, setFullName] = useState('');
   
   // Registration Success Modal State
@@ -65,8 +66,8 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   
-  // Pulling signIn and signUp directly from your Zustand useAuthStore
-  const { signIn, signUp } = useAuthStore();
+  // Pulling store methods including recovery status and updatePassword
+  const { signIn, signUp, isPasswordRecovery, updatePassword } = useAuthStore();
   const navigate = useNavigate();
 
   // Auto-dismiss error message after 5 seconds
@@ -92,6 +93,17 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
+      if (isPasswordRecovery) {
+        // Handle password update after clicking the reset email link
+        const { error: updateError } = await updatePassword(newPassword);
+        if (updateError) throw updateError;
+
+        showCustomToast("Password Updated!", "You can now log in with your new password.");
+        setAuthMode('login');
+        navigate('/auth');
+        return;
+      }
+
       if (authMode === 'login') {
         const { data: authData, error: signInError } = await signIn(email, password);
         if (signInError) throw new Error(signInError.message);
@@ -107,7 +119,7 @@ export default function AuthPage() {
 
           if (!profileError && profileData) {
             if (profileData.role === 'admin') {
-              showCustomToast("Welcome Admin!", "Successfully logged into your admin portal.");
+              showCustomToast("Welcome Admin!.");
               navigate('/admin');
               return;
             }
@@ -115,7 +127,7 @@ export default function AuthPage() {
         }
 
         // Default fallback for investors or if role check is pending
-        showCustomToast("Welcome Back!", "Successfully logged into your investor dashboard.");
+        showCustomToast("Welcome Back!");
         navigate('/dashboard');
       } 
       else if (authMode === 'register') {
@@ -196,11 +208,13 @@ export default function AuthPage() {
           
           <div className="mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-[#0B1F4B] dark:text-white">
-              {authMode === 'forgot_password' ? 'Reset Password' :
+              {isPasswordRecovery ? 'Set New Password' :
+               authMode === 'forgot_password' ? 'Reset Password' :
                authMode === 'login' ? 'Welcome Back' : 'Get Started'}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-              {authMode === 'forgot_password' ? 'Enter your email to receive a recovery link' :
+              {isPasswordRecovery ? 'Please enter your new secure password below' :
+               authMode === 'forgot_password' ? 'Enter your email to receive a recovery link' :
                authMode === 'login' ? 'Log in to manage your global real estate portfolio' : 'Create an investor account to start exploring opportunities'}
             </p>
           </div>
@@ -227,8 +241,8 @@ export default function AuthPage() {
             )}
           </AnimatePresence>
 
-          {/* Animated Tabs Header */}
-          {authMode !== 'forgot_password' && (
+          {/* Animated Tabs Header (Hidden during password recovery) */}
+          {!isPasswordRecovery && authMode !== 'forgot_password' && (
             <div className="relative flex bg-slate-100 dark:bg-[#10213B] p-1.5 rounded-md mb-8">
               <button
                 type="button"
@@ -260,7 +274,7 @@ export default function AuthPage() {
           {/* Form Fields */}
           <AnimatePresence mode="wait">
             <motion.form
-              key={authMode}
+              key={isPasswordRecovery ? 'recovery' : authMode}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
@@ -268,59 +282,10 @@ export default function AuthPage() {
               onSubmit={handleSubmit}
               className="space-y-5"
             >
-              {/* REGISTRATION: FULL NAME */}
-              {authMode === 'register' && (
+              {/* PASSWORD RECOVERY VIEW */}
+              {isPasswordRecovery ? (
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">Full Name</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                      <User className="w-5 h-5" />
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="John Doe"
-                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* EMAIL INPUT */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">Email Address</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-5 h-5" />
-                  </span>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="investor@example.com"
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
-                  />
-                </div>
-              </div>
-
-              {/* PASSWORD INPUT */}
-              {authMode !== 'forgot_password' && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Password</label>
-                    {authMode === 'login' && (
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode('forgot_password'); setError(null); }}
-                        className="text-xs text-[#B78319] dark:text-[#E5B94F] hover:underline font-semibold"
-                      >
-                        Forgot password?
-                      </button>
-                    )}
-                  </div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">New Password</label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                       <Lock className="w-5 h-5" />
@@ -328,13 +293,84 @@ export default function AuthPage() {
                     <input
                       type="password"
                       required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="••••••••"
                       className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
                     />
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* REGISTRATION: FULL NAME */}
+                  {authMode === 'register' && (
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">Full Name</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                          <User className="w-5 h-5" />
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* EMAIL INPUT */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-2">Email Address</label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-5 h-5" />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="investor@example.com"
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* PASSWORD INPUT */}
+                  {authMode !== 'forgot_password' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Password</label>
+                        {authMode === 'login' && (
+                          <button
+                            type="button"
+                            onClick={() => { setAuthMode('forgot_password'); setError(null); }}
+                            className="text-xs text-[#B78319] dark:text-[#E5B94F] hover:underline font-semibold"
+                          >
+                            Forgot password?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                          <Lock className="w-5 h-5" />
+                        </span>
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white text-base sm:text-sm focus:outline-none focus:border-[#D9A52E]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <button
@@ -346,7 +382,8 @@ export default function AuthPage() {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    {authMode === 'login' ? 'Log In to Dashboard' :
+                    {isPasswordRecovery ? 'Update Password' :
+                     authMode === 'login' ? 'Log In to Dashboard' :
                      authMode === 'register' ? 'Create Account' : 'Send Recovery Link'}
                     <ArrowRight className="w-4 h-4" />
                   </>
@@ -357,7 +394,7 @@ export default function AuthPage() {
 
           {/* Footer Navigation */}
           <div className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">
-            {authMode === 'forgot_password' ? (
+            {isPasswordRecovery ? null : authMode === 'forgot_password' ? (
               <button type="button" onClick={() => setAuthMode('login')} className="font-bold text-[#B78319] dark:text-[#E5B94F] hover:underline">
                 ← Back to Log In
               </button>
