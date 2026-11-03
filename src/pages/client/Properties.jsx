@@ -172,8 +172,7 @@ export default function PropertiesPage() {
                     onClick={() => navigate(`/properties/${property.id}`)}
                     className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-amber-500 hover:text-[#0B1F4B] text-xs font-bold transition flex items-center justify-center space-x-2"
                   >
-                    <Eye className="w-4 h-4" />
-                    <span>View Deal Details</span>
+                    <span>View Details</span>
                   </button>
                 </div>
               </div>
