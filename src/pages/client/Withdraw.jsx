@@ -87,8 +87,8 @@ export default function WithdrawalPage() {
       return;
     }
 
-    if (withdrawAmount < 1000) {
-      toast.error('Minimum withdrawal amount is $1,000.00.');
+    if (withdrawAmount < 10000) {
+      toast.error('Minimum withdrawal amount is $10,000.00.');
       return;
     }
 
@@ -176,7 +176,7 @@ export default function WithdrawalPage() {
             ${(profile?.account_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </h3>
           <p className="text-[10px] text-slate-300 mt-3 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5 text-amber-400" /> Minimum withdrawal limit: $1,000.00
+            <ArrowUpRight className="w-3.5 h-3.5 text-amber-400" /> Minimum withdrawal limit: $10,000.00
           </p>
         </div>
 
@@ -275,7 +275,7 @@ export default function WithdrawalPage() {
                 required
               />
             </div>
-            <p className="text-[10px] text-slate-400">Minimum withdrawal requirement is $1,000.00.</p>
+            <p className="text-[10px] text-slate-400">Minimum withdrawal requirement is $10,000.00.</p>
           </div>
 
           {/* Conditional Mode Inputs */}
