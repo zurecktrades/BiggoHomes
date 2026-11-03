@@ -66,7 +66,7 @@ export default function PropertyDetailsPage() {
     const schedule = [];
     const dailyBase = totalMaxProfit / durationDays;
     let cumulativeProfit = 0;
-    const purchaseDate = new Date(); // Purchase timestamp baseline
+    const purchaseDate = new Date();
 
     for (let day = 1; day <= durationDays; day++) {
       const variance = day === durationDays ? 1 : 0.85 + Math.random() * 0.3;
@@ -76,7 +76,6 @@ export default function PropertyDetailsPage() {
       
       cumulativeProfit = Number((cumulativeProfit + dailyProfit).toFixed(2));
 
-      // Add 'day - 1' to start Day 1 on the actual purchase date
       const scheduleDate = new Date(purchaseDate);
       scheduleDate.setDate(purchaseDate.getDate() + (day - 1));
 
@@ -115,7 +114,6 @@ export default function PropertyDetailsPage() {
       const durationDays = property.payout_frequency === 'annual' ? 365 : property.payout_frequency === 'bi-annual' ? 180 : 90;
       const profitScheduleJson = generateProfitSchedule(totalInvestment, parseFloat(estimatedReturn), durationDays);
 
-      // 1. Insert investment with JSONB schedule
       const { error: investError } = await supabase.from('investments').insert({
         user_id: user.id,
         property_id: property.id,
@@ -129,7 +127,6 @@ export default function PropertyDetailsPage() {
 
       if (investError) throw investError;
 
-      // 2. Log in ledger
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'investment',
@@ -138,7 +135,6 @@ export default function PropertyDetailsPage() {
         reference_id: `INV-${Date.now().toString().slice(-6)}`
       });
 
-      // 3. Deduct balance
       const updatedBalance = userBalance - totalInvestment;
       const { error: profileError } = await supabase
         .from('profiles')
@@ -147,7 +143,6 @@ export default function PropertyDetailsPage() {
 
       if (profileError) throw profileError;
 
-      // 4. Update available tokens
       const newAvailableTokens = Math.max(0, available - countToBuy);
       const newFundedAmount = Number(property.funded_amount || 0) + totalInvestment;
 
@@ -180,8 +175,8 @@ export default function PropertyDetailsPage() {
         <span>Back to Marketplace</span>
       </button>
 
-      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
-        <div className="lg:col-span-7 relative bg-slate-900 min-h-[300px] flex flex-col justify-between p-6">
+      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-md shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        <div className="lg:col-span-7 relative bg-slate-900 min-h-[350px] flex flex-col justify-between p-6">
           <img src={property.images?.[0]} alt={property.title} className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1F4B] via-black/40 to-transparent" />
           <div className="relative z-15 flex justify-between">
@@ -202,20 +197,28 @@ export default function PropertyDetailsPage() {
               <span>Unit Price: ${tokenPrice.toFixed(2)}</span>
               <span>Available: {property.available_tokens} units</span>
             </div>
-            <div className="flex items-center justify-between bg-slate-50 dark:bg-[#071326] p-3 rounded-2xl">
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-[#071326] p-3 rounded-md">
               <button onClick={() => setTokenCount(Math.max(1, tokenCount - 1))} className="p-2 bg-slate-200 dark:bg-white/10 rounded-xl"><Minus className="w-4 h-4" /></button>
               <span className="font-bold">{tokenCount}</span>
               <button onClick={() => setTokenCount(tokenCount + 1)} className="p-2 bg-slate-200 dark:bg-white/10 rounded-xl"><Plus className="w-4 h-4" /></button>
             </div>
-            <div className="text-xs space-y-1 pt-2 border-t">
+            <div className="text-xs space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
               <div className="flex justify-between"><span>Total Outlay:</span><span className="font-bold">${totalInvestment.toLocaleString()}</span></div>
               <div className="flex justify-between"><span>Est. Return:</span><span className="font-bold text-emerald-500">+${estimatedReturn}</span></div>
             </div>
           </div>
-          <button onClick={handleConfirmInvestment} disabled={submitting} className="w-full py-4 rounded-2xl bg-amber-500 text-[#0B1F4B] font-bold text-sm shadow-xl hover:opacity-90 transition">
+          <button onClick={handleConfirmInvestment} disabled={submitting} className="w-full py-4 rounded-md bg-amber-500 text-[#0B1F4B] font-bold text-sm shadow-xl hover:opacity-90 transition">
             {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Confirm Purchase'}
           </button>
         </div>
+      </div>
+
+      {/* Property Description Section */}
+      <div className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-md p-6 shadow-xl space-y-3">
+        <h2 className="text-lg font-bold">About This Property</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          {property.description || "No description provided for this property yet."}
+        </p>
       </div>
     </div>
   );
