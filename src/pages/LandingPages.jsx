@@ -284,7 +284,7 @@ export default function LandingPage() {
               </Link>
 
               <Link
-                to="/properties"
+                to="/auth"
                 className="inline-flex items-center justify-center gap-3 rounded-xl border border-slate-300 dark:border-white/30 bg-white dark:bg-white/5 px-7 py-4 font-semibold text-[#0B1F4B] dark:text-white backdrop-blur-sm transition hover:bg-slate-100 dark:hover:bg-white/10"
               >
                 Explore Properties

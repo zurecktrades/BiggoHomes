@@ -72,8 +72,8 @@ export default function WalletPage() {
       return;
     }
 
-    if (amount < 500) {
-      toast.error("Minimum deposit amount is $500.00.");
+    if (amount < 5000) {
+      toast.error("Minimum deposit amount is $5,000.00.");
       return;
     }
 
@@ -203,7 +203,7 @@ export default function WalletPage() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-bold text-slate-400 uppercase tracking-wider">Send to Address:</span>
-              <span className="text-amber-500 font-semibold">Min: $500.00</span>
+              <span className="text-amber-500 font-semibold">Min: $5,000.00</span>
             </div>
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#071326] border border-slate-200 dark:border-slate-700 flex items-center justify-between">
               {loadingWallets ? (
@@ -237,16 +237,16 @@ export default function WalletPage() {
                 <span className="absolute left-3.5 top-3 text-xs font-bold text-slate-400">$</span>
                 <input
                   type="number"
-                  min="500"
+                  min="5000"
                   step="any"
                   value={cryptoAmount}
                   onChange={(e) => setCryptoAmount(e.target.value)}
-                  placeholder="500.00"
+                  placeholder="5000.00"
                   className="w-full pl-8 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#071326] focus:outline-none focus:border-amber-500 font-bold"
                   required
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Minimum deposit requirement is $500.00.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Minimum deposit requirement is $5,000.00.</p>
             </div>
             <button
               type="submit"
@@ -265,8 +265,8 @@ export default function WalletPage() {
               <MessageSquare className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-sm font-bold">Manual Bank Wire / Account Manager</h3>
-              <p className="text-xs text-slate-400">Direct fiat wire transfers or concierge OTC desk</p>
+              <h3 className="text-sm font-bold">Manual Bank Wire</h3>
+              <p className="text-xs text-slate-400">Direct fiat wire transfers</p>
             </div>
           </div>
 
