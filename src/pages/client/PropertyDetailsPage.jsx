@@ -195,7 +195,7 @@ export default function PropertyDetailsPage() {
           <div className="space-y-3">
             <div className="flex justify-between text-xs font-bold text-amber-500">
               <span>Unit Price: ${tokenPrice.toFixed(2)}</span>
-              <span>Available: {property.available_tokens} units</span>
+              <span></span>
             </div>
             <div className="flex items-center justify-between bg-slate-50 dark:bg-[#071326] p-3 rounded-md">
               <button onClick={() => setTokenCount(Math.max(1, tokenCount - 1))} className="p-2 bg-slate-200 dark:bg-white/10 rounded-xl"><Minus className="w-4 h-4" /></button>
