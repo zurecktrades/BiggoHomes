@@ -266,11 +266,11 @@ export default function WithdrawalPage() {
               <span className="absolute left-3.5 top-3 text-xs font-bold text-slate-400">$</span>
               <input
                 type="number"
-                min="1000"
+                min="10,000"
                 step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="1000.00"
+                placeholder="10,000.00"
                 className="w-full pl-8 pr-4 py-3 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#071326] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold"
                 required
               />

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   DollarSign, ArrowUpRight, ArrowDownLeft, PlusCircle, Calendar, 
-  Clock, Search, Loader2, CheckCircle2, AlertCircle, User, ShieldCheck, X 
+  Clock, Search, Loader2, CheckCircle2, AlertCircle, User, ShieldCheck, X, Building2 
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -32,6 +32,7 @@ const showCustomToast = (title, message, type = 'success') => {
 
 export default function AdminTransactionsPage() {
   const [investors, setInvestors] = useState([]);
+  const [properties, setProperties] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,18 +41,35 @@ export default function AdminTransactionsPage() {
   // Form State for Manual Transaction Logging
   const [selectedInvestorId, setSelectedInvestorId] = useState('');
   const [txType, setTxType] = useState('deposit'); // deposit | withdrawal | investment
+  
+  // Investment-specific fields
+  const [selectedPropertyId, setSelectedPropertyId] = useState('');
+  const [tokenCount, setTokenCount] = useState(1);
+
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
   const [status, setStatus] = useState('completed');
   
-  // Backdate Date & Time State (Default to current local date/time ISO format)
+  // Backdate Date & Time State
   const [customDateTime, setCustomDateTime] = useState(
-    new Date().toISOString().slice(0, 16) // Format: YYYY-MM-DDTHH:mm
+    new Date().toISOString().slice(0, 16)
   );
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Whenever property selection or token count changes (and type is investment), auto-compute amount
+  useEffect(() => {
+    if (txType === 'investment' && selectedPropertyId) {
+      const prop = properties.find(p => p.id === selectedPropertyId);
+      if (prop) {
+        const tokenPrice = prop.total_tokens > 0 ? Number(prop.target_amount) / Number(prop.total_tokens) : 0;
+        const computedTotal = tokenPrice * Number(tokenCount || 1);
+        setAmount(computedTotal.toFixed(2));
+      }
+    }
+  }, [selectedPropertyId, tokenCount, txType, properties]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -66,7 +84,16 @@ export default function AdminTransactionsPage() {
       if (invError) throw invError;
       setInvestors(invData || []);
 
-      // 2. Fetch recent transactions joined with user profiles if possible, or flat query
+      // 2. Fetch properties for investment assignment
+      const { data: propData, error: propError } = await supabase
+        .from('properties')
+        .select('*')
+        .order('title', { ascending: true });
+
+      if (propError) throw propError;
+      setProperties(propData || []);
+
+      // 3. Fetch recent transactions
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select(`*, profiles(full_name, email)`)
@@ -83,6 +110,34 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  // Helper to generate profit schedule jsonb for investments
+  const generateProfitSchedule = (principal, totalMaxProfit, durationDays) => {
+    const schedule = [];
+    const dailyBase = totalMaxProfit / durationDays;
+    let cumulativeProfit = 0;
+    const purchaseDate = new Date(customDateTime);
+
+    for (let day = 1; day <= durationDays; day++) {
+      const variance = day === durationDays ? 1 : 0.85 + Math.random() * 0.3;
+      const dailyProfit = day === durationDays 
+        ? Number((totalMaxProfit - cumulativeProfit).toFixed(2)) 
+        : Number((dailyBase * variance).toFixed(2));
+      
+      cumulativeProfit = Number((cumulativeProfit + dailyProfit).toFixed(2));
+
+      const scheduleDate = new Date(purchaseDate);
+      scheduleDate.setDate(purchaseDate.getDate() + (day - 1));
+
+      schedule.push({
+        day: day,
+        date: scheduleDate.toISOString().split('T')[0],
+        profitEarned: cumulativeProfit,
+        portfolioValue: Number((principal + cumulativeProfit).toFixed(2))
+      });
+    }
+    return schedule;
+  };
+
   // Handle Manual Transaction Submission & Wallet Balance Adjustment
   const handleLogTransaction = async (e) => {
     e.preventDefault();
@@ -91,20 +146,66 @@ export default function AdminTransactionsPage() {
       return;
     }
 
+    if (txType === 'investment' && !selectedPropertyId) {
+      showCustomToast("Validation Error", "Please select a property for the investment allocation.", "error");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const parsedAmount = parseFloat(amount);
       const targetInvestor = investors.find(i => i.id === selectedInvestorId);
+      const targetProperty = properties.find(p => p.id === selectedPropertyId);
 
+      const timestamp = customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString();
+
+      // 1. If type is investment, also record into investments table and update property tokens
+      if (txType === 'investment' && targetProperty) {
+        const countToBuy = parseInt(tokenCount) || 1;
+        const durationDays = targetProperty.payout_frequency === 'annual' ? 365 : targetProperty.payout_frequency === 'bi-annual' ? 180 : 90;
+        const estimatedReturn = Number(parsedAmount * (Number(targetProperty.roi_percentage) / 100)).toFixed(2);
+        const profitScheduleJson = generateProfitSchedule(parsedAmount, parseFloat(estimatedReturn), durationDays);
+
+        // Insert into investments table
+        const { error: investInsertError } = await supabase.from('investments').insert({
+          user_id: selectedInvestorId,
+          property_id: selectedPropertyId,
+          amount: parsedAmount,
+          tokens_purchased: countToBuy,
+          payout_frequency: targetProperty.payout_frequency || 'quarterly',
+          expected_roi_amount: parseFloat(estimatedReturn),
+          status: status === 'completed' ? 'active' : 'pending',
+          profit_schedule: profitScheduleJson,
+          created_at: timestamp
+        });
+
+        if (investInsertError) throw investInsertError;
+
+        // Update available tokens and funded amount on property
+        const currentAvailable = Number(targetProperty.available_tokens ?? targetProperty.total_tokens);
+        const newAvailableTokens = Math.max(0, currentAvailable - countToBuy);
+        const newFundedAmount = Number(targetProperty.funded_amount || 0) + parsedAmount;
+
+        await supabase
+          .from('properties')
+          .update({
+            available_tokens: newAvailableTokens,
+            funded_amount: newFundedAmount,
+            status: newAvailableTokens === 0 ? 'fully_funded' : targetProperty.status
+          })
+          .eq('id', selectedPropertyId);
+      }
+
+      // 2. Insert into transactions table
       const transactionPayload = {
         user_id: selectedInvestorId,
         type: txType,
         amount: parsedAmount,
         status: status,
-        reference: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
-        reference_id: reference || `MANUAL-${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`, // Syncs with user ledger column
-        description: `Escrow Manual ${txType}`, 
-        created_at: customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString()
+        reference: reference || `${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
+        reference_id: reference || `${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
+        description: txType === 'investment' ? `Allocated to ${targetProperty?.title || 'Property'}` : `Direct Bank ${txType}`, 
+        created_at: timestamp
       };
 
       const { error: txInsertError } = await supabase
@@ -113,7 +214,7 @@ export default function AdminTransactionsPage() {
 
       if (txInsertError) throw txInsertError;
 
-      // 2. Automatically adjust investor's account balance if transaction is completed
+      // 3. Automatically adjust investor's account balance if completed
       if (status === 'completed' && targetInvestor) {
         const currentBalance = targetInvestor.account_balance || 0;
         const currentDeposited = targetInvestor.total_deposited || 0;
@@ -125,6 +226,9 @@ export default function AdminTransactionsPage() {
           newBalance += parsedAmount;
           newDeposited += parsedAmount;
         } else if (txType === 'withdrawal') {
+          newBalance -= parsedAmount;
+        } else if (txType === 'investment') {
+          // Deduct from balance if investing from wallet balance directly
           newBalance -= parsedAmount;
         }
 
@@ -145,6 +249,8 @@ export default function AdminTransactionsPage() {
       setAmount('');
       setReference('');
       setSelectedInvestorId('');
+      setSelectedPropertyId('');
+      setTokenCount(1);
       setCustomDateTime(new Date().toISOString().slice(0, 16));
       
       // Refresh list
@@ -170,7 +276,7 @@ export default function AdminTransactionsPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transaction Management/Funding</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Manually log deposits, withdrawals, or investment allocations for investors with backdating support.
+          Manually log deposits, withdrawals, or direct property investments for investors with backdating support.
         </p>
       </div>
 
@@ -232,10 +338,51 @@ export default function AdminTransactionsPage() {
               </div>
             </div>
 
+            {/* CONDITIONAL PROPERTY & TOKEN SELECTORS IF INVESTMENT TYPE */}
+            {txType === 'investment' && (
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#071326] border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="flex items-center space-x-2 text-xs font-bold text-amber-500">
+                  <Building2 className="w-4 h-4" />
+                  <span>Property Investment Configuration</span>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Select Property *</label>
+                  <select
+                    value={selectedPropertyId}
+                    onChange={(e) => setSelectedPropertyId(e.target.value)}
+                    required={txType === 'investment'}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="">-- Choose Property Asset --</option>
+                    {properties.map((prop) => (
+                      <option key={prop.id} value={prop.id}>
+                        {prop.title} ({prop.location}) - ROI: {prop.roi_percentage}%
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Number of Tokens to Buy *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={tokenCount}
+                    onChange={(e) => setTokenCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    required={txType === 'investment'}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Amount & Reference */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Amount ($) *</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                  Amount ($) {txType === 'investment' && '(Auto-computed)'} *
+                </label>
                 <input
                   type="number"
                   step="0.01"
@@ -243,7 +390,10 @@ export default function AdminTransactionsPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="5000.00"
                   required
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold"
+                  readOnly={txType === 'investment'}
+                  className={`w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 font-bold ${
+                    txType === 'investment' ? 'opacity-80 cursor-not-allowed' : ''
+                  }`}
                 />
               </div>
 
@@ -273,7 +423,7 @@ export default function AdminTransactionsPage() {
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Select past date/time if recording historical bank transfers or deposits.
+                Select past date/time if recording historical allocations or bank transfers.
               </p>
             </div>
 
@@ -327,7 +477,7 @@ export default function AdminTransactionsPage() {
                       <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition">
                         <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
                           <div>{tx.profiles?.full_name || 'Unknown User'}</div>
-                          <div className="text-[10px] font-normal text-slate-400">{tx.reference || 'Manual Entry'}</div>
+                          <div className="text-[10px] font-normal text-slate-400">{tx.reference || tx.description || 'Manual Entry'}</div>
                         </td>
                         <td className="py-3.5 px-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -338,7 +488,7 @@ export default function AdminTransactionsPage() {
                           </span>
                         </td>
                         <td className={`py-3.5 px-3 font-extrabold ${tx.type === 'deposit' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
-                          {tx.type === 'withdrawal' ? '-' : '+'}${Number(tx.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {tx.type === 'withdrawal' || tx.type === 'investment' ? '-' : '+'}${Number(tx.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3.5 px-3">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
