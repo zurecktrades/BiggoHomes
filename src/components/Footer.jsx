@@ -31,7 +31,7 @@ export default function Footer() {
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-[#D9A52E]">Contact</h4>
           <ul className="space-y-2.5 text-sm font-semibold">
-            <li><a href="mailto:contact@biggohomes.com" className="hover:text-white transition">contact@biggohomes.com</a></li>
+            <li><a href="mailto:contact@biggohomes.com" className="hover:text-white transition">contact@biggohomes.org</a></li>
             {/* <li><a href="#facebook" className="hover:text-white transition">Facebook</a></li>
             <li><a href="#linkedin" className="hover:text-white transition">LinkedIn</a></li>
             <li><a href="#twitter" className="hover:text-white transition">Twitter / X</a></li> */}
