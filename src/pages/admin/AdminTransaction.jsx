@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   DollarSign, ArrowUpRight, ArrowDownLeft, PlusCircle, Calendar, 
-  Clock, Search, Loader2, CheckCircle2, AlertCircle, User, ShieldCheck, X, Building2 
+  Clock, Search, Loader2, CheckCircle2, AlertCircle, User, ShieldCheck, X, Building2, Trash2, AlertTriangle 
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -38,9 +38,13 @@ export default function AdminTransactionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Deletion Confirmation Modal State
+  const [txToDelete, setTxToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Form State for Manual Transaction Logging
   const [selectedInvestorId, setSelectedInvestorId] = useState('');
-  const [txType, setTxType] = useState('deposit'); // deposit | withdrawal | investment
+  const [txType, setTxType] = useState('deposit'); // deposit | crypto_deposit | withdrawal | investment
   
   // Investment-specific fields
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
@@ -196,15 +200,21 @@ export default function AdminTransactionsPage() {
           .eq('id', selectedPropertyId);
       }
 
+      // Auto-generate reference code if left blank
+      const typePrefix = txType === 'crypto_deposit' ? 'CRYPTO' : txType === 'investment' ? 'INV' : txType === 'withdrawal' ? 'WTH' : 'DEP';
+      const autoRef = `${typePrefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const finalRef = reference.trim() ? reference.trim() : autoRef;
+
       // 2. Insert into transactions table
+      const formattedType = txType === 'crypto_deposit' ? 'deposit' : txType;
       const transactionPayload = {
         user_id: selectedInvestorId,
-        type: txType,
+        type: formattedType,
         amount: parsedAmount,
         status: status,
-        reference: reference || `${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
-        reference_id: reference || `${txType.toUpperCase()}-${Date.now().toString().slice(-6)}`,
-        description: txType === 'investment' ? `Allocated to ${targetProperty?.title || 'Property'}` : `Direct Bank ${txType}`, 
+        reference: finalRef,
+        reference_id: finalRef,
+        description: txType === 'crypto_deposit' ? 'Crypto Deposit (BTC)' : txType === 'investment' ? `Allocated to ${targetProperty?.title || 'Property'}` : `Direct Bank ${txType}`, 
         created_at: timestamp
       };
 
@@ -222,13 +232,12 @@ export default function AdminTransactionsPage() {
         let newBalance = currentBalance;
         let newDeposited = currentDeposited;
 
-        if (txType === 'deposit') {
+        if (txType === 'deposit' || txType === 'crypto_deposit') {
           newBalance += parsedAmount;
           newDeposited += parsedAmount;
         } else if (txType === 'withdrawal') {
           newBalance -= parsedAmount;
         } else if (txType === 'investment') {
-          // Deduct from balance if investing from wallet balance directly
           newBalance -= parsedAmount;
         }
 
@@ -243,7 +252,7 @@ export default function AdminTransactionsPage() {
         if (profileUpdateError) throw profileUpdateError;
       }
 
-      showCustomToast("Success", `Manual ${txType} of $${parsedAmount.toLocaleString()} logged for ${targetInvestor?.full_name || 'Investor'}.`);
+      showCustomToast("Success", `Manual ${txType.replace('_', ' ')} of $${parsedAmount.toLocaleString()} logged for ${targetInvestor?.full_name || 'Investor'}.`);
       
       // Reset form
       setAmount('');
@@ -263,20 +272,134 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  // Handle Confirmed Deletion & Balance Reversal
+  const confirmDeleteTransaction = async () => {
+    if (!txToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      // 1. Fetch transaction record details
+      const { data: txRecord, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', txToDelete.id)
+        .single();
+
+      if (fetchError || !txRecord) throw new Error("Transaction record not found.");
+
+      // 2. Fetch investor profile balances
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('account_balance, total_deposited')
+        .eq('id', txRecord.user_id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const currentBalance = Number(profileData?.account_balance || 0);
+      const currentDeposited = Number(profileData?.total_deposited || 0);
+      const txAmount = Number(txRecord.amount || 0);
+
+      let newBalance = currentBalance;
+      let newDeposited = currentDeposited;
+
+      // 3. Reverse financial impact
+      if (txRecord.type === 'deposit') {
+        newBalance = Math.max(0, currentBalance - txAmount);
+        newDeposited = Math.max(0, currentDeposited - txAmount);
+      } else if (txRecord.type === 'withdrawal' || txRecord.type === 'investment') {
+        newBalance = currentBalance + txAmount;
+      }
+
+      // 4. Update investor profile
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({
+          account_balance: newBalance,
+          total_deposited: newDeposited
+        })
+        .eq('id', txRecord.user_id);
+
+      if (profileUpdateError) throw profileUpdateError;
+
+      // 5. Delete transaction
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', txToDelete.id);
+
+      if (deleteError) throw deleteError;
+
+      showCustomToast("Deleted & Reconciled", "Transaction removed and investor balances updated successfully.");
+      setTxToDelete(null);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      showCustomToast("Delete Failed", err.message || "Could not delete transaction or reconcile balances.", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter(tx => 
     (tx.profiles?.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (tx.reference?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (tx.type?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+    (tx.type?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (tx.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="space-y-8 font-sans pb-12 max-w-7xl mx-auto">
+    <div className="space-y-8 font-sans pb-12 max-w-7xl mx-auto relative">
       
+      {/* DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {txToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="max-w-md w-full bg-white dark:bg-[#0D1B32] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-2 bg-red-500" />
+              
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mb-5">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Delete Transaction?</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                You are about to delete transaction <span className="font-semibold text-slate-900 dark:text-white">{txToDelete.reference || 'Record'}</span> of <span className="font-semibold text-slate-900 dark:text-white">${Number(txToDelete.amount || 0).toLocaleString()}</span>. This will automatically reverse its impact on the investor's wallet balance.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTxToDelete(null)}
+                  disabled={isDeleting}
+                  className="py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteTransaction}
+                  disabled={isDeleting}
+                  className="py-3 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs shadow-lg transition flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Yes, Delete</span>}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Transaction Management/Funding</h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Manually log deposits, withdrawals, or direct property investments for investors with backdating support.
+          Manually log bank deposits, crypto deposits, withdrawals, or property investments with full management tools.
         </p>
       </div>
 
@@ -318,7 +441,8 @@ export default function AdminTransactionsPage() {
                   onChange={(e) => setTxType(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 uppercase font-semibold"
                 >
-                  <option value="deposit">Deposit (Credit)</option>
+                  <option value="deposit">Bank Deposit</option>
+                  <option value="crypto_deposit">Crypto Deposit</option>
                   <option value="withdrawal">Withdrawal (Debit)</option>
                   <option value="investment">Investment Allocation</option>
                 </select>
@@ -398,12 +522,14 @@ export default function AdminTransactionsPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Reference Code</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                  Reference (Optional Auto-gen)
+                </label>
                 <input
                   type="text"
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder="e.g. BANK-WIRE-9921"
+                  placeholder="Auto-generated if blank"
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#10213B] text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -423,7 +549,7 @@ export default function AdminTransactionsPage() {
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Select past date/time if recording historical allocations or bank transfers.
+                Select past date/time if recording historical crypto hashes or bank wire entries.
               </p>
             </div>
 
@@ -469,7 +595,8 @@ export default function AdminTransactionsPage() {
                       <th className="py-3 px-3">Type</th>
                       <th className="py-3 px-3">Amount</th>
                       <th className="py-3 px-3">Status</th>
-                      <th className="py-3 px-4 text-right">Timestamp</th>
+                      <th className="py-3 px-3 text-right">Timestamp</th>
+                      <th className="py-3 px-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -484,7 +611,7 @@ export default function AdminTransactionsPage() {
                             tx.type === 'deposit' ? 'bg-emerald-500/10 text-emerald-500' :
                             tx.type === 'withdrawal' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'
                           }`}>
-                            {tx.type}
+                            {tx.description?.includes('Crypto') ? 'Crypto Deposit' : tx.type}
                           </span>
                         </td>
                         <td className={`py-3.5 px-3 font-extrabold ${tx.type === 'deposit' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
@@ -498,8 +625,18 @@ export default function AdminTransactionsPage() {
                             {tx.status}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right text-[11px] text-slate-500">
+                        <td className="py-3.5 px-3 text-right text-[11px] text-slate-500">
                           {new Date(tx.created_at).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setTxToDelete(tx)}
+                            className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition"
+                            title="Delete Transaction"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}

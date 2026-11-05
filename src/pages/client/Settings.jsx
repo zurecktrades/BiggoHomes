@@ -12,9 +12,11 @@ export default function SettingsPage() {
   const { user, profile, fetchProfile } = useAuthStore();
   const [activeTab, setActiveTab] = useState('identity'); // 'identity', 'kyc', 'security'
 
-  // Tab 1: Identity State
+  // Tab 1: Identity & Avatar State
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
   const [updatingIdentity, setUpdatingIdentity] = useState(false);
 
   // Tab 2: KYC State (Front Passport, Back Passport, Selfie)
@@ -33,10 +35,20 @@ export default function SettingsPage() {
     if (profile) {
       setFullName(profile.full_name || '');
       setPhone(profile.phone || '');
+      setAvatarPreview(profile.avatar_url || '');
     }
   }, [profile]);
 
-  // Handle Identity Update with Session Guard
+  // Handle Avatar File Selection & Local Preview
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Handle Identity & Avatar Update with Session Guard
   const handleUpdateIdentity = async (e) => {
     e.preventDefault();
     
@@ -52,19 +64,42 @@ export default function SettingsPage() {
 
     setUpdatingIdentity(true);
     try {
+      let avatarUrl = profile?.avatar_url || null;
+
+      // 1. Upload new avatar if selected
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicURLData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        avatarUrl = publicURLData.publicUrl;
+      }
+
+      // 2. Update profile record
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: fullName,
           phone: phone,
+          avatar_url: avatarUrl,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      toast.success('Identity details updated successfully!');
-      if (fetchProfile) fetchProfile();
+      toast.success('Identity and profile picture updated successfully!');
+      setAvatarFile(null);
+      if (fetchProfile) fetchProfile(user.id);
     } catch (err) {
       console.error(err);
       toast.error('Failed to update identity.');
@@ -89,7 +124,6 @@ export default function SettingsPage() {
 
     setUploadingKyc(true);
     try {
-      // Helper function to upload file and return public URL
       const uploadSingleFile = async (file, prefix) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}-${prefix}-${Date.now()}.${fileExt}`;
@@ -108,14 +142,12 @@ export default function SettingsPage() {
         return publicURLData.publicUrl;
       };
 
-      // Upload all 3 images concurrently
       const [frontUrl, backUrl, selfieUrl] = await Promise.all([
         uploadSingleFile(frontFile, 'front'),
         uploadSingleFile(backFile, 'back'),
         uploadSingleFile(selfieFile, 'selfie')
       ]);
 
-      // Update profile status to pending and save document URLs as JSON
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -128,7 +160,7 @@ export default function SettingsPage() {
       if (updateError) throw updateError;
 
       toast.success('KYC documents submitted successfully!');
-      if (fetchProfile) fetchProfile();
+      if (fetchProfile) fetchProfile(user.id);
     } catch (err) {
       console.error(err);
       toast.error('Failed to upload KYC documents.');
@@ -237,7 +269,7 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* TAB 1: IDENTITY MODIFICATION */}
+      {/* TAB 1: IDENTITY & AVATAR MODIFICATION */}
       {activeTab === 'identity' && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -245,11 +277,36 @@ export default function SettingsPage() {
           className="bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6"
         >
           <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Personal Identity</h3>
-            <p className="text-xs text-slate-500">Update your legal name and contact details displayed across the platform.</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Personal Identity & Avatar</h3>
+            <p className="text-xs text-slate-500">Update your profile picture, legal name, and contact details.</p>
           </div>
 
-          <form onSubmit={handleUpdateIdentity} className="space-y-4">
+          <form onSubmit={handleUpdateIdentity} className="space-y-6">
+            
+            {/* Profile Picture Uploader */}
+            <div className="flex items-center space-x-5">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-amber-500/40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-md">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <label className="cursor-pointer inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-[#0B1F4B] text-xs font-bold transition border border-slate-200 dark:border-slate-700">
+                  <Camera className="w-4 h-4 text-amber-500" />
+                  <span>Change Photo</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-slate-400">Allowed JPG, PNG or WEBP. Max size of 2MB.</p>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address</label>
               <input
@@ -322,7 +379,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* STATE A: VERIFIED SUCCESS CARD */}
           {kycStatus === 'verified' ? (
             <div className="p-8 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-4">
               <ShieldCheck className="w-16 h-16 mx-auto text-emerald-500" />
@@ -334,7 +390,6 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : kycStatus === 'pending' || uploadingKyc ? (
-            /* STATE B: INFINITE LOADING / VERIFYING SPINNER STATE */
             <div className="p-12 rounded-3xl bg-slate-50 dark:bg-[#071326] border border-slate-200 dark:border-slate-800 text-center space-y-4">
               <Loader2 className="w-12 h-12 mx-auto text-amber-500 animate-spin" />
               <div className="space-y-1">
@@ -345,7 +400,6 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
-            /* STATE C: UNVERIFIED UPLOAD FORM */
             <form onSubmit={handleKycUpload} className="space-y-6">
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#071326] border border-slate-200 dark:border-slate-700 space-y-2">
                 <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Required Document Checklist</h4>
@@ -356,10 +410,7 @@ export default function SettingsPage() {
                 </ul>
               </div>
 
-              {/* 3 Upload Grid Fields */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Front Passport */}
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-center space-y-2 bg-slate-50/50 dark:bg-[#071326]/30">
                   <UploadCloud className="w-8 h-8 mx-auto text-amber-500 opacity-80" />
                   <div>
@@ -379,7 +430,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Back Passport */}
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-center space-y-2 bg-slate-50/50 dark:bg-[#071326]/30">
                   <UploadCloud className="w-8 h-8 mx-auto text-amber-500 opacity-80" />
                   <div>
@@ -399,7 +449,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Selfie */}
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-center space-y-2 bg-slate-50/50 dark:bg-[#071326]/30">
                   <Camera className="w-8 h-8 mx-auto text-amber-500 opacity-80" />
                   <div>
@@ -418,7 +467,6 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </div>
-
               </div>
 
               <div className="flex justify-end">
