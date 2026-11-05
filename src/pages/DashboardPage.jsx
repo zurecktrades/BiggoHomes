@@ -112,7 +112,6 @@ export default function DashboardPage() {
         <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Welcome back, {profile?.full_name || 'Investor'}!</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-xl">
               Monitor your fractional real estate equity, review automated daily profit yields, and manage your wallet capital.
             </p>
