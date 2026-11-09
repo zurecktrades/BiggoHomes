@@ -9,17 +9,18 @@ import {
 import { toast } from 'react-toastify';
 
 export default function AccountManagerPage() {
-  // 1. ALL HOOKS DECLARED UNCONDITIONALLY AT THE TOP
   const { user, profile } = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [adminId, setAdminId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showEndChatModal, setShowEndChatModal] = useState(false);
   const chatEndRef = useRef(null);
+
+  // Hardcoded Admin ID representing Biggo Admin
+  const ADMIN_ID = 'f54c972d-b568-4dde-84c9-99dfe21b9384';
 
   // Manager details derived from profile fallback
   const managerName = profile?.manager_name || 'BiggoHomes Concierge';
@@ -33,26 +34,22 @@ export default function AccountManagerPage() {
 
   const fetchChatData = async () => {
     setLoading(true);
-    // 1. Get Admin ID
-    const { data: adminData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('role', 'admin')
-      .limit(1)
-      .single();
-
-    if (adminData) {
-      setAdminId(adminData.id);
-
-      // 2. Fetch only ACTIVE messages between user and admin
-      const { data: history } = await supabase
+    try {
+      // Fetch only ACTIVE messages strictly between the user and the fixed Admin ID
+      const { data: history, error } = await supabase
         .from('messages')
         .select('*')
         .eq('status', 'active')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${adminData.id}),and(sender_id.eq.${adminData.id},receiver_id.eq.${user.id})`)
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${user.id})`)
         .order('created_at', { ascending: true });
 
-      if (history) setMessages(history);
+      if (error) {
+        console.error('Error fetching chat history:', error);
+      } else if (history) {
+        setMessages(history);
+      }
+    } catch (err) {
+      console.error('Failed to fetch chat data:', err);
     }
     setLoading(false);
   };
@@ -67,7 +64,7 @@ export default function AccountManagerPage() {
 
   // Realtime subscription
   useEffect(() => {
-    if (!user || !adminId) return;
+    if (!user) return;
 
     const channel = supabase
       .channel(`dedicated_chat_${user.id}`)
@@ -77,8 +74,8 @@ export default function AccountManagerPage() {
         (payload) => {
           if (
             payload.new.status === 'active' &&
-            ((payload.new.sender_id === user.id && payload.new.receiver_id === adminId) ||
-             (payload.new.sender_id === adminId && payload.new.receiver_id === user.id))
+            ((payload.new.sender_id === user.id && payload.new.receiver_id === ADMIN_ID) ||
+             (payload.new.sender_id === ADMIN_ID && payload.new.receiver_id === user.id))
           ) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === payload.new.id)) return prev;
@@ -92,7 +89,7 @@ export default function AccountManagerPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, adminId]);
+  }, [user]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -101,12 +98,13 @@ export default function AccountManagerPage() {
   const handleSendMessage = async (e, text = newMessage) => {
     if (e) e.preventDefault();
     const msgText = text.trim();
-    if (!msgText || !adminId || !user) return;
+    if (!msgText || !user) return;
 
     setSending(true);
+    // Force receiver_id to ALWAYS be the admin ID
     const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
-      receiver_id: adminId,
+      receiver_id: ADMIN_ID,
       content: msgText,
       status: 'active',
     });
@@ -131,7 +129,7 @@ export default function AccountManagerPage() {
       // 1. Save JSONB snapshot in chat_sessions
       const { error: archiveError } = await supabase.from('chat_sessions').insert({
         user_id: user.id,
-        admin_id: adminId,
+        admin_id: ADMIN_ID,
         session_title: `Support Chat - ${new Date().toLocaleDateString()}`,
         messages_snapshot: messages,
         status: 'archived',
@@ -144,7 +142,7 @@ export default function AccountManagerPage() {
         .from('messages')
         .update({ status: 'archived' })
         .eq('status', 'active')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${adminId}),and(sender_id.eq.${adminId},receiver_id.eq.${user.id})`);
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${ADMIN_ID}),and(sender_id.eq.${ADMIN_ID},receiver_id.eq.${user.id})`);
 
       if (updateError) throw updateError;
 
