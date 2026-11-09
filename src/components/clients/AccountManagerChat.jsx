@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLocation } from 'react-router-dom';
-import { Send, UserCheck, MessageSquare, X } from 'lucide-react';
+import { Send, UserCheck, MessageSquare, X, RefreshCw } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function AccountManagerChat() {
   const { user, profile } = useAuthStore();
@@ -13,6 +14,7 @@ export default function AccountManagerChat() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [adminId, setAdminId] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const chatEndRef = useRef(null);
 
   // Extract designated manager details from investor profile (with fallbacks)
@@ -25,12 +27,15 @@ export default function AccountManagerChat() {
     .toUpperCase()
     .slice(0, 2);
 
-  // Fetch admin profile ID & active message history
-  useEffect(() => {
-    if (!user || location.pathname === '/chat-manager') return;
+  // Robust fetch function ensuring we explicitly query the user with role = 'admin'
+const fetchChatDetails = async () => {
+    if (!user) return;
 
-    const fetchChatDetails = async () => {
-      // 1. Fetch main admin profile ID
+    try {
+      // 1. Define the known Admin ID directly as a reliable fallback/constant
+      const KNOWN_ADMIN_ID = 'f54c972d-b568-4dde-84c9-99dfe21b9384';
+      
+      // Try fetching dynamically, but fallback immediately to the known admin ID if it fails
       const { data: adminData } = await supabase
         .from('profiles')
         .select('id')
@@ -38,46 +43,75 @@ export default function AccountManagerChat() {
         .limit(1)
         .single();
 
-      if (adminData) setAdminId(adminData.id);
+      const realAdminId = adminData?.id || KNOWN_ADMIN_ID;
+      setAdminId(realAdminId);
 
-      // 2. Fetch past active conversation
-      const { data: history } = await supabase
+      // 2. Query messages strictly between the logged-in user and the real admin ID
+      const { data: history, error: historyError } = await supabase
         .from('messages')
         .select('*')
         .eq('status', 'active')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${adminData?.id}),and(sender_id.eq.${adminData?.id},receiver_id.eq.${user.id})`)
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${realAdminId}),and(sender_id.eq.${realAdminId},receiver_id.eq.${user.id})`)
         .order('created_at', { ascending: true });
 
-      if (history) setMessages(history);
+      if (historyError) {
+        console.error('Error fetching chat history:', historyError);
+      } else if (history) {
+        setMessages(history);
+      }
+    } catch (err) {
+      console.error('Failed to fetch chat details:', err);
+    }
+  };
+
+  // Fetch admin profile ID, past messages, and setup real-time subscription cleanly
+  useEffect(() => {
+    if (!user || location.pathname === '/chat-manager') return;
+
+    let chatChannel = null;
+
+    const setupChat = async () => {
+      await fetchChatDetails();
+
+      // Subscribe to Supabase Realtime safely
+      chatChannel = supabase
+        .channel(`user_chat_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => {
+            if (
+              payload.new.status === 'active' &&
+              adminId &&
+              ((payload.new.sender_id === user.id && payload.new.receiver_id === adminId) ||
+               (payload.new.sender_id === adminId && payload.new.receiver_id === user.id))
+            ) {
+              setMessages((prev) => {
+                if (prev.some((msg) => msg.id === payload.new.id)) return prev;
+                return [...prev, payload.new];
+              });
+            }
+          }
+        )
+        .subscribe();
     };
 
-    fetchChatDetails();
-
-    // 3. Subscribe to Supabase Realtime
-    const channel = supabase
-      .channel(`user_chat_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          if (
-            payload.new.status === 'active' &&
-            ((payload.new.sender_id === user.id && payload.new.receiver_id === adminId) ||
-             (payload.new.sender_id === adminId && payload.new.receiver_id === user.id))
-          ) {
-            setMessages((prev) => {
-              if (prev.some((msg) => msg.id === payload.new.id)) return prev;
-              return [...prev, payload.new];
-            });
-          }
-        }
-      )
-      .subscribe();
+    setupChat();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (chatChannel) {
+        supabase.removeChannel(chatChannel);
+      }
     };
-  }, [user, adminId, location.pathname]);
+  }, [user, location.pathname]);
+
+  // Handle Manual Refresh Click
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchChatDetails();
+    setRefreshing(false);
+    toast.success('Chat refreshed successfully!', { autoClose: 1500, hideProgressBar: true });
+  };
 
   // Auto scroll
   useEffect(() => {
@@ -91,6 +125,7 @@ export default function AccountManagerChat() {
     const msgText = newMessage;
     setNewMessage('');
 
+    // Inserts message strictly targeting the fetched real admin ID
     const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
       receiver_id: adminId,
@@ -100,6 +135,10 @@ export default function AccountManagerChat() {
 
     if (error) {
       console.error('Failed to send message:', error);
+      toast.error('Failed to send message.');
+    } else {
+      // Immediately pull fresh messages after sending as a reliable fallback
+      fetchChatDetails();
     }
   };
 
@@ -123,7 +162,7 @@ export default function AccountManagerChat() {
       {isOpen && (
         <div className="w-80 sm:w-96 h-[480px] bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
           
-          {/* Header showcasing assigned Manager Avatar & Name */}
+          {/* Header showcasing assigned Manager Avatar & Name + Refresh Button */}
           <div className="p-4 bg-[#0B1F4B] text-white border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="relative">
@@ -145,12 +184,25 @@ export default function AccountManagerChat() {
                 <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider">Account Manager</p>
               </div>
             </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center space-x-1">
+              {/* Manual Refresh Button */}
+              <button 
+                onClick={handleManualRefresh}
+                disabled={refreshing}
+                title="Refresh Messages"
+                className="text-slate-300 hover:text-white p-2 rounded-lg bg-white/5 hover:bg-white/10 transition"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-amber-400' : ''}`} />
+              </button>
+
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Messages Area */}
@@ -159,7 +211,7 @@ export default function AccountManagerChat() {
               <div className="text-center py-8 text-slate-400 text-xs">
                 <UserCheck className="w-8 h-8 mx-auto mb-2 text-amber-500 opacity-60" />
                 <p>You are connected with {managerName}.</p>
-                <p className="mt-1">Send a message below to start chatting!</p>
+                <p className="mt-1">Send a message below or click refresh to sync history!</p>
               </div>
             ) : (
               messages.map((msg) => {

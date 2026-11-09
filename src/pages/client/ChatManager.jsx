@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { 
   Send, Loader2, Sparkles, 
   Archive, CheckCheck, AlertTriangle, X, 
-  Trash2
+  Trash2, RefreshCw, MessageSquare, Settings, Upload, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -17,6 +17,7 @@ export default function AccountManagerPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [showEndChatModal, setShowEndChatModal] = useState(false);
   const chatEndRef = useRef(null);
 
@@ -54,6 +55,14 @@ export default function AccountManagerPage() {
       if (history) setMessages(history);
     }
     setLoading(false);
+  };
+
+  // Manual Refresh Handler
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchChatData();
+    setRefreshing(false);
+    toast.success("Chat history refreshed!", { autoClose: 1500, hideProgressBar: true });
   };
 
   // Realtime subscription
@@ -106,6 +115,7 @@ export default function AccountManagerPage() {
       toast.error('Failed to send message.');
     } else {
       setNewMessage('');
+      fetchChatData(); // Fallback sync
     }
     setSending(false);
   };
@@ -158,15 +168,27 @@ export default function AccountManagerPage() {
           <h2 className="text-2xl font-bold tracking-tight">Account Support</h2>
         </div>
 
-        {/* Start New Chat / Archive Button */}
-        <button
-          onClick={() => setShowEndChatModal(true)}
-          disabled={archiving || messages.length === 0}
-          className="inline-flex items-center space-x-2 px-4 py-2 rounded-2xl bg-red-500/10 hover:bg-amber-500/20 text-red-500 border border-red-500/30 text-xs font-bold transition disabled:opacity-40"
-        >
-          {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          <span>End Chat Session</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* Manual Refresh Button */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center space-x-2 px-4 py-2 rounded-2xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 text-xs font-bold transition"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-amber-500' : ''}`} />
+            <span>Refresh Chat</span>
+          </button>
+
+          {/* Start New Chat / Archive Button */}
+          <button
+            onClick={() => setShowEndChatModal(true)}
+            disabled={archiving || messages.length === 0}
+            className="inline-flex items-center space-x-2 px-4 py-2 rounded-2xl bg-red-500/10 hover:bg-amber-500/20 text-red-500 border border-red-500/30 text-xs font-bold transition disabled:opacity-40"
+          >
+            {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <span>End Chat Session</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -202,7 +224,7 @@ export default function AccountManagerPage() {
           </div>
         </div>
 
-        {/* Right Column: Chat Screen with Max Height on Mobile & Desktop */}
+        {/* Right Column: Chat Screen */}
         <div className="lg:col-span-8 bg-white dark:bg-[#0B1F4B] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col justify-between overflow-hidden h-[350px] sm:h-[380px] lg:h-[500px]">
           {/* Message Feed */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50/30 dark:bg-[#071326]/30">

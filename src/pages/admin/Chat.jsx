@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Send, Search, MessageSquare, Settings, Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Send, Search, MessageSquare, Settings, Upload, Loader2, CheckCircle2, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const showCustomToast = (title, message, type = 'success') => {
@@ -35,6 +35,7 @@ export default function AdminMessagesPage() {
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
   
   const [isEditingManager, setIsEditingManager] = useState(false);
   const [managerNameInput, setManagerNameInput] = useState('');
@@ -118,20 +119,25 @@ export default function AdminMessagesPage() {
   };
 
   // Fetch conversation for selected investor
-  useEffect(() => {
+  const fetchConversation = async () => {
     if (!selectedInvestor || !user) return;
 
-    const fetchConversation = async () => {
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedInvestor.id}),and(sender_id.eq.${selectedInvestor.id},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: true });
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedInvestor.id}),and(sender_id.eq.${selectedInvestor.id},receiver_id.eq.${user.id})`)
+      .order('created_at', { ascending: true });
 
-      if (data) setMessages(data);
-    };
+    if (data) setMessages(data);
+  };
 
+  useEffect(() => {
     fetchConversation();
+  }, [selectedInvestor, user]);
+
+  // Realtime subscription for specific active conversation
+  useEffect(() => {
+    if (!selectedInvestor || !user) return;
 
     const chatChannel = supabase
       .channel(`admin_chat_${selectedInvestor.id}`)
@@ -157,6 +163,14 @@ export default function AdminMessagesPage() {
     };
   }, [selectedInvestor, user]);
 
+  // Manual Refresh Handler for Admin Chat
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await fetchConversation();
+    setRefreshing(false);
+    showCustomToast("Refreshed", "Conversation history updated successfully.");
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -174,6 +188,9 @@ export default function AdminMessagesPage() {
       content: text,
       is_read: false,
     });
+
+    // Fallback sync
+    fetchConversation();
   };
 
   const handleSaveManagerName = async (e) => {
@@ -341,13 +358,25 @@ export default function AdminMessagesPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setIsEditingManager(!isEditingManager)}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center space-x-1.5 transition flex-shrink-0"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{isEditingManager ? 'Close Config' : 'Configure Manager'}</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                {/* Manual Refresh Button */}
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={refreshing}
+                  className="p-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/25 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center space-x-1"
+                  title="Refresh Conversation"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-amber-500' : ''}`} />
+                </button>
+
+                <button
+                  onClick={() => setIsEditingManager(!isEditingManager)}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center space-x-1.5 transition flex-shrink-0"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{isEditingManager ? 'Close Config' : 'Configure Manager'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Manager Configuration Panel */}
