@@ -114,29 +114,36 @@ export default function AdminTransactionsPage() {
     }
   };
 
-  // Helper to generate profit schedule jsonb for investments
-  const generateProfitSchedule = (principal, totalMaxProfit, durationDays) => {
+  // Monthly profit schedule generator
+  const generateProfitSchedule = (principal, totalMaxProfit, payoutFrequency, customStartDate) => {
     const schedule = [];
-    const dailyBase = totalMaxProfit / durationDays;
+    const purchaseDate = new Date(customDateTime || customStartDate);
+    
+    let totalMonths = 3; // quarterly default
+    if (payoutFrequency === 'annual') totalMonths = 12;
+    else if (payoutFrequency === 'bi-annual') totalMonths = 6;
+    else if (payoutFrequency === 'quarterly') totalMonths = 3;
+
+    const monthlyProfit = Number((totalMaxProfit / totalMonths).toFixed(2));
     let cumulativeProfit = 0;
-    const purchaseDate = new Date(customDateTime);
 
-    for (let day = 1; day <= durationDays; day++) {
-      const variance = day === durationDays ? 1 : 0.85 + Math.random() * 0.3;
-      const dailyProfit = day === durationDays 
+    for (let month = 1; month <= totalMonths; month++) {
+      const isFinalMonth = month === totalMonths;
+      const currentProfit = isFinalMonth 
         ? Number((totalMaxProfit - cumulativeProfit).toFixed(2)) 
-        : Number((dailyBase * variance).toFixed(2));
+        : monthlyProfit;
       
-      cumulativeProfit = Number((cumulativeProfit + dailyProfit).toFixed(2));
+      cumulativeProfit = Number((cumulativeProfit + currentProfit).toFixed(2));
 
-      const scheduleDate = new Date(purchaseDate);
-      scheduleDate.setDate(purchaseDate.getDate() + (day - 1));
+      const milestoneDate = new Date(purchaseDate);
+      milestoneDate.setMonth(purchaseDate.getMonth() + month);
 
       schedule.push({
-        day: day,
-        date: scheduleDate.toISOString().split('T')[0],
+        month: month,
+        date: milestoneDate.toISOString().split('T')[0],
         profitEarned: cumulativeProfit,
-        portfolioValue: Number((principal + cumulativeProfit).toFixed(2))
+        principalReturned: isFinalMonth ? principal : 0,
+        portfolioValue: Number((isFinalMonth ? 0 : principal + cumulativeProfit).toFixed(2))
       });
     }
     return schedule;
@@ -163,14 +170,62 @@ export default function AdminTransactionsPage() {
 
       const timestamp = customDateTime ? new Date(customDateTime).toISOString() : new Date().toISOString();
 
-      // 1. If type is investment, also record into investments table and update property tokens
+      let totalBackdatedProfitCredited = 0;
+      let profitScheduleJson = [];
+
+      // Auto-generate reference code if left blank
+      const typePrefix = txType === 'crypto_deposit' ? 'CRYPTO' : txType === 'investment' ? 'INV' : txType === 'withdrawal' ? 'WTH' : 'DEP';
+      const autoRef = `${typePrefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const finalRef = reference.trim() ? reference.trim() : autoRef;
+
+      // 1. If type is investment, record into investments table, property tokens, insert investment transaction row, and itemize backdated monthly profits
       if (txType === 'investment' && targetProperty) {
         const countToBuy = parseInt(tokenCount) || 1;
-        const durationDays = targetProperty.payout_frequency === 'annual' ? 365 : targetProperty.payout_frequency === 'bi-annual' ? 180 : 90;
         const estimatedReturn = Number(parsedAmount * (Number(targetProperty.roi_percentage) / 100)).toFixed(2);
-        const profitScheduleJson = generateProfitSchedule(parsedAmount, parseFloat(estimatedReturn), durationDays);
+        
+        profitScheduleJson = generateProfitSchedule(parsedAmount, parseFloat(estimatedReturn), targetProperty.payout_frequency, timestamp);
 
-        // Insert into investments table
+        // A. Insert the main Investment transaction row so it displays in user transaction history
+        const { error: invTxError } = await supabase.from('transactions').insert({
+          user_id: selectedInvestorId,
+          type: 'investment',
+          amount: parsedAmount,
+          status: status,
+          reference: finalRef,
+          reference_id: finalRef,
+          description: `Allocated to ${targetProperty.title} (${countToBuy} unit(s))`,
+          created_at: timestamp
+        });
+
+        if (invTxError) throw invTxError;
+
+        const now = new Date();
+
+        // B. Loop through monthly milestones and log separate transactions for past months' profits
+        for (const milestone of profitScheduleJson) {
+          const milestoneDate = new Date(milestone.date);
+          
+          if (milestoneDate <= now && status === 'completed') {
+            const monthlyProfitAmount = milestone.month === 1 
+              ? milestone.profitEarned 
+              : Number((milestone.profitEarned - profitScheduleJson[milestone.month - 2].profitEarned).toFixed(2));
+            
+            totalBackdatedProfitCredited += monthlyProfitAmount;
+
+            await supabase.from('transactions').insert({
+              user_id: selectedInvestorId,
+              type: 'deposit',
+              amount: monthlyProfitAmount,
+              status: 'completed',
+              reference: `PROF-M${milestone.month}-${Math.floor(1000 + Math.random() * 9000)}`,
+              reference_id: `PROF-M${milestone.month}-${Math.floor(1000 + Math.random() * 9000)}`,
+              description: `Monthly Profit - ${targetProperty.title}`,
+              created_at: milestoneDate.toISOString()
+            });
+          }
+        }
+
+        // C. Insert into investments table
         const { error: investInsertError } = await supabase.from('investments').insert({
           user_id: selectedInvestorId,
           property_id: selectedPropertyId,
@@ -185,7 +240,7 @@ export default function AdminTransactionsPage() {
 
         if (investInsertError) throw investInsertError;
 
-        // Update available tokens and funded amount on property
+        // D. Update property tokens and funded amount
         const currentAvailable = Number(targetProperty.available_tokens ?? targetProperty.total_tokens);
         const newAvailableTokens = Math.max(0, currentAvailable - countToBuy);
         const newFundedAmount = Number(targetProperty.funded_amount || 0) + parsedAmount;
@@ -200,29 +255,26 @@ export default function AdminTransactionsPage() {
           .eq('id', selectedPropertyId);
       }
 
-      // Auto-generate reference code if left blank
-      const typePrefix = txType === 'crypto_deposit' ? 'CRYPTO' : txType === 'investment' ? 'INV' : txType === 'withdrawal' ? 'WTH' : 'DEP';
-      const autoRef = `${typePrefix}-${Math.floor(100000 + Math.random() * 900000)}`;
-      const finalRef = reference.trim() ? reference.trim() : autoRef;
+      // 2. Insert main transaction if not an investment
+      if (txType !== 'investment') {
+        const formattedType = txType === 'crypto_deposit' ? 'deposit' : txType;
+        const transactionPayload = {
+          user_id: selectedInvestorId,
+          type: formattedType,
+          amount: parsedAmount,
+          status: status,
+          reference: finalRef,
+          reference_id: finalRef,
+          description: txType === 'crypto_deposit' ? 'Crypto Deposit (BTC)' : `Escrow Bank ${txType}`, 
+          created_at: timestamp
+        };
 
-      // 2. Insert into transactions table
-      const formattedType = txType === 'crypto_deposit' ? 'deposit' : txType;
-      const transactionPayload = {
-        user_id: selectedInvestorId,
-        type: formattedType,
-        amount: parsedAmount,
-        status: status,
-        reference: finalRef,
-        reference_id: finalRef,
-        description: txType === 'crypto_deposit' ? 'Crypto Deposit (BTC)' : txType === 'investment' ? `Allocated to ${targetProperty?.title || 'Property'}` : `Direct Bank ${txType}`, 
-        created_at: timestamp
-      };
+        const { error: txInsertError } = await supabase
+          .from('transactions')
+          .insert(transactionPayload);
 
-      const { error: txInsertError } = await supabase
-        .from('transactions')
-        .insert(transactionPayload);
-
-      if (txInsertError) throw txInsertError;
+        if (txInsertError) throw txInsertError;
+      }
 
       // 3. Automatically adjust investor's account balance if completed
       if (status === 'completed' && targetInvestor) {
@@ -238,7 +290,8 @@ export default function AdminTransactionsPage() {
         } else if (txType === 'withdrawal') {
           newBalance -= parsedAmount;
         } else if (txType === 'investment') {
-          newBalance -= parsedAmount;
+          // Subtract investment outlay, but add back accumulated cumulative backdated profits
+          newBalance = (newBalance - parsedAmount) + totalBackdatedProfitCredited;
         }
 
         const { error: profileUpdateError } = await supabase
@@ -252,7 +305,7 @@ export default function AdminTransactionsPage() {
         if (profileUpdateError) throw profileUpdateError;
       }
 
-      showCustomToast("Success", `Manual ${txType.replace('_', ' ')} of $${parsedAmount.toLocaleString()} logged for ${targetInvestor?.full_name || 'Investor'}.`);
+      showCustomToast("Success", `Manual ${txType.replace('_', ' ')} of $${parsedAmount.toLocaleString()} logged successfully.`);
       
       // Reset form
       setAmount('');
@@ -278,7 +331,6 @@ export default function AdminTransactionsPage() {
 
     setIsDeleting(true);
     try {
-      // 1. Fetch transaction record details
       const { data: txRecord, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
@@ -287,7 +339,6 @@ export default function AdminTransactionsPage() {
 
       if (fetchError || !txRecord) throw new Error("Transaction record not found.");
 
-      // 2. Fetch investor profile balances
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('account_balance, total_deposited')
@@ -303,7 +354,6 @@ export default function AdminTransactionsPage() {
       let newBalance = currentBalance;
       let newDeposited = currentDeposited;
 
-      // 3. Reverse financial impact
       if (txRecord.type === 'deposit') {
         newBalance = Math.max(0, currentBalance - txAmount);
         newDeposited = Math.max(0, currentDeposited - txAmount);
@@ -311,7 +361,6 @@ export default function AdminTransactionsPage() {
         newBalance = currentBalance + txAmount;
       }
 
-      // 4. Update investor profile
       const { error: profileUpdateError } = await supabase
         .from('profiles')
         .update({
@@ -322,7 +371,6 @@ export default function AdminTransactionsPage() {
 
       if (profileUpdateError) throw profileUpdateError;
 
-      // 5. Delete transaction
       const { error: deleteError } = await supabase
         .from('transactions')
         .delete()
@@ -481,7 +529,7 @@ export default function AdminTransactionsPage() {
                     <option value="">-- Choose Property Asset --</option>
                     {properties.map((prop) => (
                       <option key={prop.id} value={prop.id}>
-                        {prop.title} ({prop.location}) - ROI: {prop.roi_percentage}%
+                        {prop.title} ({prop.location}) - ROI: {prop.roi_percentage}% | Payout: {prop.payout_frequency}
                       </option>
                     ))}
                   </select>
